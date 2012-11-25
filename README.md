@@ -1,4 +1,5 @@
-== Vector
+Vector
+======
 
 Vector emulates a vector display, like those found in Asteroids and Tempest 
 arcade games. In its current state, it targets the iPad. For best results,
