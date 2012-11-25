@@ -16,6 +16,11 @@
 		D34DA923165F069300AEA9C2 /* Default.png in Resources */ = {isa = PBXBuildFile; fileRef = D34DA922165F069300AEA9C2 /* Default.png */; };
 		D34DA925165F069300AEA9C2 /* Default@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = D34DA924165F069300AEA9C2 /* Default@2x.png */; };
 		D34DA927165F069300AEA9C2 /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = D34DA926165F069300AEA9C2 /* Default-568h@2x.png */; };
+		D34DA939165F09FE00AEA9C2 /* MainViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D34DA938165F09FE00AEA9C2 /* MainViewController.m */; };
+		D34DA93D165F0CF100AEA9C2 /* GLKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA93C165F0CF100AEA9C2 /* GLKit.framework */; };
+		D34DA93F165F0D0700AEA9C2 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA93E165F0D0700AEA9C2 /* OpenGLES.framework */; };
+		D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA941165F113E00AEA9C2 /* vector_display.c */; };
+		D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +37,14 @@
 		D34DA922165F069300AEA9C2 /* Default.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Default.png; sourceTree = "<group>"; };
 		D34DA924165F069300AEA9C2 /* Default@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default@2x.png"; sourceTree = "<group>"; };
 		D34DA926165F069300AEA9C2 /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-568h@2x.png"; sourceTree = "<group>"; };
+		D34DA937165F09FE00AEA9C2 /* MainViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainViewController.h; sourceTree = "<group>"; };
+		D34DA938165F09FE00AEA9C2 /* MainViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MainViewController.m; sourceTree = "<group>"; };
+		D34DA93C165F0CF100AEA9C2 /* GLKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLKit.framework; path = System/Library/Frameworks/GLKit.framework; sourceTree = SDKROOT; };
+		D34DA93E165F0D0700AEA9C2 /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
+		D34DA940165F113300AEA9C2 /* vector_display.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector_display.h; sourceTree = "<group>"; };
+		D34DA941165F113E00AEA9C2 /* vector_display.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_display.c; sourceTree = "<group>"; };
+		D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_display_platform_ios.c; sourceTree = "<group>"; };
+		D34DA945165F118600AEA9C2 /* vector_display_platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector_display_platform.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +52,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D34DA93F165F0D0700AEA9C2 /* OpenGLES.framework in Frameworks */,
+				D34DA93D165F0CF100AEA9C2 /* GLKit.framework in Frameworks */,
 				D34DA911165F069300AEA9C2 /* UIKit.framework in Frameworks */,
 				D34DA913165F069300AEA9C2 /* Foundation.framework in Frameworks */,
 				D34DA915165F069300AEA9C2 /* CoreGraphics.framework in Frameworks */,
@@ -51,6 +66,8 @@
 		D34DA901165F069300AEA9C2 = {
 			isa = PBXGroup;
 			children = (
+				D34DA93E165F0D0700AEA9C2 /* OpenGLES.framework */,
+				D34DA93C165F0CF100AEA9C2 /* GLKit.framework */,
 				D34DA916165F069300AEA9C2 /* Vector */,
 				D34DA90F165F069300AEA9C2 /* Frameworks */,
 				D34DA90D165F069300AEA9C2 /* Products */,
@@ -81,6 +98,12 @@
 				D34DA91F165F069300AEA9C2 /* VectorAppDelegate.h */,
 				D34DA920165F069300AEA9C2 /* VectorAppDelegate.m */,
 				D34DA917165F069300AEA9C2 /* Supporting Files */,
+				D34DA937165F09FE00AEA9C2 /* MainViewController.h */,
+				D34DA938165F09FE00AEA9C2 /* MainViewController.m */,
+				D34DA940165F113300AEA9C2 /* vector_display.h */,
+				D34DA941165F113E00AEA9C2 /* vector_display.c */,
+				D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */,
+				D34DA945165F118600AEA9C2 /* vector_display_platform.h */,
 			);
 			path = Vector;
 			sourceTree = "<group>";
@@ -167,6 +190,9 @@
 			files = (
 				D34DA91D165F069300AEA9C2 /* main.m in Sources */,
 				D34DA921165F069300AEA9C2 /* VectorAppDelegate.m in Sources */,
+				D34DA939165F09FE00AEA9C2 /* MainViewController.m in Sources */,
+				D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */,
+				D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,6 +303,7 @@
 				D34DA92C165F069300AEA9C2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
