@@ -2,7 +2,9 @@ Vector
 ======
 
 Vector emulates a vector display, like those found in Asteroids and Tempest 
-arcade games. In its current state, it targets the iPad. For best results,
+arcade games. It is implemented in OpenGL ES 2.0.
+
+In its current state, it targets the iPad. For best results,
 use a retina device. The vector effect is far more convincing with tiny 
 pixels.
 
