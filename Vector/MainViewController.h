@@ -15,9 +15,13 @@
     vector_display_t *display;
 
     GLuint depthBuff;
-    float pos;
     int frame;
+
+    float pos;
     float angle;
+
+    float pos_s[25];
+    float angle_s[25];
 }
 
 @property (strong, nonatomic) EAGLContext *context;

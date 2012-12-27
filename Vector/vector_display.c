@@ -16,14 +16,17 @@
 #include <OpenGLES/ES2/glext.h>
 
 #define MAX_STEPS 300
-#define DEFAULT_STEPS 30 
-#define DEFAULT_DECAY 0.80f
-#define DEFAULT_INITIAL_DECAY 0.18f
-#define DEFAULT_THICKNESS 2.4f
+#define DEFAULT_STEPS 4 
+#define DEFAULT_DECAY 0.5f
+#define DEFAULT_INITIAL_DECAY 0.2f
+#define DEFAULT_THICKNESS 100.0f
+#define TEXTURE_SIZE 128
+#define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
 
 typedef struct {
     float x, y, z;
-    float r, g, b;
+    float r, g, b, a;
+    float u, v;
 } point_t;
 
 struct vector_display {
@@ -31,6 +34,7 @@ struct vector_display {
     GLuint uniform_modelview;
     GLuint uniform_projection;
     GLuint uniform_alpha;
+    GLuint uniform_tex;
 
     float width, height;
 
@@ -48,6 +52,8 @@ struct vector_display {
     GLuint *buffers;
     GLuint *buffernpoints;
 
+    GLuint texid;
+
     int did_setup;
 
     float initial_decay;
@@ -55,7 +61,8 @@ struct vector_display {
 };
 
 #define VERTEX_POS_INDEX       (0)
-#define VERTEX_COLOR_INDEX     (2)
+#define VERTEX_COLOR_INDEX     (1)
+#define VERTEX_TEXCOORD_INDEX  (2)
 
 static GLuint load_shader(GLenum type, const char *shaderSrc);
 
@@ -115,13 +122,123 @@ static void append_point(vector_display_t *self, float x, float y, float a) {
     self->points[self->npoints].x = x;
     self->points[self->npoints].y = y;
     self->points[self->npoints].z = 10000.0f;
-    self->points[self->npoints].r = self->r * a;
-    self->points[self->npoints].g = self->g * a;
-    self->points[self->npoints].b = self->b * a;
+    self->points[self->npoints].r = self->r;
+    self->points[self->npoints].g = self->g;
+    self->points[self->npoints].a = a;
+    self->points[self->npoints].b = self->b;
+    self->points[self->npoints].u = 0.5;
+    self->points[self->npoints].v = 0.5;
+    self->npoints++;
+}
+
+static void append_texpoint(vector_display_t *self, float x, float y, float u, float v) {
+    ensure_points(self, self->npoints + 1);
+    self->points[self->npoints].x = x;
+    self->points[self->npoints].y = y;
+    self->points[self->npoints].z = 10000.0f;
+    self->points[self->npoints].r = self->r;
+    self->points[self->npoints].g = self->g;
+    self->points[self->npoints].b = self->b;
+    self->points[self->npoints].a = 1.0f;
+
+    self->points[self->npoints].u = u / TEXTURE_SIZE;
+    self->points[self->npoints].v = 1.0f - (v / TEXTURE_SIZE);
+    
+    //self->points[self->npoints].u = u;
+    //self->points[self->npoints].v = v;
+
+    //self->points[self->npoints].u = 1.0f;
+    //self->points[self->npoints].v = 1.0f;
+    
     self->npoints++;
 }
 
 int vector_display_draw(vector_display_t *self, float x0, float y0, float x1, float y1) {
+    float t = self->thickness;
+    float a = atan2(y1 - y0, x1 - x0);
+
+    float xl0 = x0 + t * sin(a);
+    float yl0 = y0 - t * cos(a);
+
+    float xr0 = x0 - t * sin(a);
+    float yr0 = y0 + t * cos(a);
+
+    float xlt0 = xl0 - t * cos(a);
+    float ylt0 = yl0 - t * sin(a);
+
+    float xrt0 = xr0 - t * cos(a);
+    float yrt0 = yr0 - t * sin(a);
+
+    float xl1 = x1 + t * sin(a);
+    float yl1 = y1 - t * cos(a);
+
+    float xr1 = x1 - t * sin(a);
+    float yr1 = y1 + t * cos(a);
+
+    float xlt1 = xl1 + t * cos(a);
+    float ylt1 = yl1 + t * sin(a);
+
+    float xrt1 = xr1 + t * cos(a);
+    float yrt1 = yr1 + t * sin(a);
+
+    // left side
+    append_texpoint(self, x1, y1, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, x0, y0, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xl1, yl1, 0.0f, HALF_TEXTURE_SIZE);
+
+    append_texpoint(self, xl0, yl0, 0.0f, HALF_TEXTURE_SIZE);
+    append_texpoint(self, x0, y0, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xl1, yl1, 0.0f, HALF_TEXTURE_SIZE);
+
+    // right side
+    append_texpoint(self, x0, y0, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, x1, y1, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+
+    append_texpoint(self, x0, y0, HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xr0, yr0, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+
+    // 0 endcap
+    append_texpoint(self, xlt0, ylt0, 0.0f, 0.0f);    
+    append_texpoint(self, xl0, yl0, 0.0f, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xr0, yr0, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+
+    append_texpoint(self, xlt0, ylt0, 0.0f, 0.0f);
+    append_texpoint(self, xr0, yr0, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xrt0, yrt0, TEXTURE_SIZE, 0.0f);   
+    
+    
+    // 1 endcap
+    append_texpoint(self, xlt1, ylt1, 0.0f, 0.0f);    
+    append_texpoint(self, xl1, yl1, 0.0f, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+
+    append_texpoint(self, xlt1, ylt1, 0.0f, 0.0f);
+    append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+    append_texpoint(self, xrt1, yrt1, TEXTURE_SIZE, 0.0f);   
+
+    /*
+    // tip 0
+    append_texpoint(self,xt0,yt0,0.0f);
+    append_texpoint(self,xr0,yr0,0.0f);
+    append_texpoint(self,x0,y0,1.0f);
+
+    append_texpoint(self,xl0,yl0,0.0f);
+    append_texpoint(self,xt0,yt0,0.0f);
+    append_texpoint(self,x0,y0,1.0f);
+    
+    // tip 1
+    append_texpoint(self,xt1,yt1,0.0f);
+    append_texpoint(self,xr1,yr1,0.0f);
+    append_texpoint(self,x1,y1,1.0f);
+
+    append_texpoint(self,xt1,yt1,0.0f);
+    append_texpoint(self,x1,y1,1.0f);
+    append_texpoint(self,xl1,yl1,0.0f);
+    */
+
+#if 0
     float t = self->thickness;
     float a = atan2(y1 - y0, x1 - x0);
 
@@ -178,6 +295,7 @@ int vector_display_draw(vector_display_t *self, float x0, float y0, float x1, fl
     append_point(self,xt1,yt1,0.0f);
     append_point(self,x1,y1,1.0f);
     append_point(self,xl1,yl1,0.0f);
+#endif
 
     return 0;
 }
@@ -205,28 +323,44 @@ int vector_display_set_decay(vector_display_t *self, float decay) {
     return 0;
 }
 
+static void check_error(const char *desc) {
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        debugf("opengl error in %s: %d", desc, (int)err);
+    }
+}
+
 int vector_display_setup(vector_display_t *self) {    
     const char *vShaderStr =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
     "                                           \n"
+    "    attribute vec2 inTexCoord;             \n"
     "    attribute vec4 inPosition;             \n"
-    "    attribute vec3 inColor;                \n"
-    "    varying vec3 Color;                    \n"
+    "    attribute vec4 inColor;                \n"
+    "                                           \n"
+    "    varying vec4 Color;                    \n"
+    "    varying vec2 TexCoord;                 \n"
     "                                           \n"
     "    void main()                            \n"
     "    {                                      \n"
     "        gl_Position = inProjectionMatrix * inModelViewMatrix * inPosition;\n"
-    "        Color = inColor;                   \n"
+    "        Color       = inColor;             \n"
+    "        TexCoord    = inTexCoord;          \n"
     "    }\n";
 
     const char *fShaderStr =
-    "    precision mediump float;                     \n"
-    "    uniform float alpha;                         \n"
-    "    varying vec3 Color;                          \n"
-    "    void main() {                                \n"
-    "        gl_FragColor = vec4(Color[0], Color[1], Color[2], alpha);       \n"
-    "    }                                            \n";
+    "    precision mediump float;               \n"
+    "                                           \n"
+    "    uniform sampler2D tex1;                \n"
+    "    uniform float alpha;                   \n"
+    "                                           \n"
+    "    varying vec4 Color;                    \n"
+    "    varying vec2 TexCoord;                 \n"
+    "                                           \n"
+    "    void main() {                          \n"
+    "        gl_FragColor = Color * texture2D(tex1, TexCoord.st) * vec4(1.0, 1.0, 1.0, alpha);\n"
+    "    }                                      \n";
     
     GLuint vertexShader;
     GLuint fragmentShader;
@@ -252,6 +386,7 @@ int vector_display_setup(vector_display_t *self) {
     
     glBindAttribLocation(program, VERTEX_COLOR_INDEX, "inColor");
     glBindAttribLocation(program, VERTEX_POS_INDEX,   "inPosition");
+    glBindAttribLocation(program, VERTEX_TEXCOORD_INDEX, "inTexCoord");
     
     // Link the program
     glLinkProgram(program);
@@ -276,10 +411,56 @@ int vector_display_setup(vector_display_t *self) {
     // Store the program object
     self->program = program;
 
+    // generate the texture
+    unsigned char texbuf[TEXTURE_SIZE * TEXTURE_SIZE * 4];
+    memset(texbuf, 0xff, sizeof(texbuf));
+    int x,y;
+    for (x = 0; x < TEXTURE_SIZE; x++) {
+        for (y = 0; y < TEXTURE_SIZE; y++) {
+            double distance = sqrt(pow(x-HALF_TEXTURE_SIZE, 2) + pow(y-HALF_TEXTURE_SIZE, 2)) / (double)HALF_TEXTURE_SIZE;
+
+            if (distance > 1.0) distance = 1.0;
+
+#if 0
+            double shelf = 4.0/256;
+            double mult  = pow(10, -10 * distance) + shelf;
+
+            if (distance > 0.4 && shelf > 0) {
+                mult = cos((x - 0.4) * 2 * M_PI) * shelf/2 + shelf/2;
+            }
+#else
+            double mult  = pow(6, -12 * distance);
+#endif
+ 
+            int val = (int)round(mult * 256);
+
+            if (distance < 0.01) val = 0xff;
+            //if (distance > 0.5 && distance < 1.0) val = 0xff;
+
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)val;
+        }
+    }
+
+    // load and bind the texture
+
+    glGenTextures(1, &self->texid);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, self->texid);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, texbuf);
+    check_error("glTexImage2D");
+
+
     // get uniform locations
     self->uniform_modelview  = glGetUniformLocation(self->program, "inModelViewMatrix");
     self->uniform_projection = glGetUniformLocation(self->program, "inProjectionMatrix");
     self->uniform_alpha      = glGetUniformLocation(self->program, "alpha");
+    self->uniform_tex        = glGetUniformLocation(self->program, "tex");
     
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -305,9 +486,11 @@ int vector_display_update(vector_display_t *self) {
 
     // clear the screen
     glClear(GL_COLOR_BUFFER_BIT);
-    //glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_STENCIL_TEST);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ZERO);
+    glDisable(GL_DITHER);
+    glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
 
     // setup shaders
     glUseProgram(self->program);
@@ -335,16 +518,22 @@ int vector_display_update(vector_display_t *self) {
             //debugf("skip buffer %d", stepi);
         } else {
             float alpha;
-            if      (stepi == 0) alpha = 1.0f;
-            else if (stepi == 1) alpha = self->initial_decay;
-            else                 alpha = pow(self->decay, stepi-1) * self->initial_decay;
+            if (stepi == 0) {
+                alpha = 1.0f;
+            } else if (stepi == 1) {
+                alpha = self->initial_decay;
+            } else {
+                alpha = pow(self->decay, stepi-1) * self->initial_decay;
+            }
 
             glUniform1f(self->uniform_alpha, alpha); 
             glBindBuffer(GL_ARRAY_BUFFER, self->buffers[i]);
             glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(point_t), 0);
-            glVertexAttribPointer(VERTEX_COLOR_INDEX, 3, GL_FLOAT, GL_FALSE, sizeof(point_t), 12);
+            glVertexAttribPointer(VERTEX_COLOR_INDEX, 4, GL_FLOAT, GL_FALSE, sizeof(point_t), 3 * sizeof(float));
+            glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(point_t), 7 * sizeof(float));
             glEnableVertexAttribArray(VERTEX_POS_INDEX);
             glEnableVertexAttribArray(VERTEX_COLOR_INDEX);
+            glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
             glDrawArrays(GL_TRIANGLES, 0, self->buffernpoints[i]);
         }
     }
