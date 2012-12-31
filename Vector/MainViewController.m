@@ -43,7 +43,7 @@
 }
 
 static void draw_wheel(vector_display_t *display, float angle, float x, float y, float radius) {
-    float spokeradius = radius - 4.0f;
+    float spokeradius = radius - 2.0f;
     // draw spokes
     vector_display_draw(display, 
                         x + spokeradius * sin(angle), 
@@ -66,41 +66,44 @@ static void draw_wheel(vector_display_t *display, float angle, float x, float y,
                         x - spokeradius * sin(angle + 3.0f * M_PI / 4.0f), 
                         y + spokeradius * cos(angle + 3.0f * M_PI / 4.0f));
 
-    float edgeangle;
-    float angadjust = 2.0f / 360.0f * 2 * M_PI;
+    float edgeangle = 0.0f;
+    float angadjust = 0.0f;//2.0f / 360.0f * 2 * M_PI;
+
+    vector_display_begin_draw(display, 
+                              x + radius * sin(angle + edgeangle + angadjust),
+                              y - radius * cos(angle + edgeangle + angadjust));
     for (edgeangle = 0; edgeangle < 2 * M_PI - 0.001; edgeangle += M_PI/4.0f) {
-        vector_display_draw(display,
-                            x + radius * sin(angle + edgeangle + angadjust),
-                            y - radius * cos(angle + edgeangle + angadjust),
-                            x + radius * sin(angle + edgeangle + M_PI / 4.0f - angadjust),
-                            y - radius * cos(angle + edgeangle + M_PI / 4.0f - angadjust));
+        vector_display_draw_to(display,
+                               x + radius * sin(angle + edgeangle + M_PI / 4.0f - angadjust),
+                               y - radius * cos(angle + edgeangle + M_PI / 4.0f - angadjust));
     }
+    vector_display_end_draw(display);
 }
 
-static void draw_circle(vector_display_t *display, float angle, float x, float y, float radius) {
-    float edgeangle;
+static void draw_circle(vector_display_t *display, float angle, float x, float y, float radius, double steps) {
+    float edgeangle = 0.0f;
     float angadjust = 0.0f;
 
-    float step = M_PI / 8.0f;
+    float step = M_PI * 2 / steps;
 
+    vector_display_begin_draw(display, 
+                              x + radius * sin(angle + edgeangle + angadjust),
+                              y - radius * cos(angle + edgeangle + angadjust));
     for (edgeangle = 0; edgeangle < 2 * M_PI - 0.001; edgeangle += step) {
-        vector_display_draw(display,
-                            x + radius * sin(angle + edgeangle + angadjust),
-                            y - radius * cos(angle + edgeangle + angadjust),
-                            x + radius * sin(angle + edgeangle + step - angadjust),
-                            y - radius * cos(angle + edgeangle + step - angadjust));
+        vector_display_draw_to(display,
+                               x + radius * sin(angle + edgeangle + step - angadjust),
+                               y - radius * cos(angle + edgeangle + step - angadjust));
     }
+    vector_display_end_draw(display);
 }
 
 static void draw_box(vector_display_t *display, float x, float y, float w, float h) {
-    float edgeangle;
-    float step = M_PI / 8.0f;
-
-
-    vector_display_draw(display, x, y, x + w, y);
-    vector_display_draw(display, x + w, y, x + w, y + h);
-    vector_display_draw(display, x + w, y + h, x, y + h);
-    vector_display_draw(display, x, y + h, x, y);
+    vector_display_begin_draw(display, x, y);
+    vector_display_draw_to(display, x + w, y);
+    vector_display_draw_to(display, x + w, y + h);
+    vector_display_draw_to(display, x, y + h);
+    vector_display_draw_to(display, x, y);
+    vector_display_end_draw(display);
 }
 
 - (void)update {
@@ -114,22 +117,22 @@ static void draw_box(vector_display_t *display, float x, float y, float w, float
         angle_s[i] += (15.0f/i) / 360.0f * 2.0f * M_PI;
 
         if (i % 3 == 0) {
-            vector_display_set_color(display, 0.6f, 0.6f, 1.0f);  
-            draw_circle(display, angle_s[i], pos_s[i], i * 90, i * 10);
+            vector_display_set_color(display, 0.7f, 0.7f, 1.0f);  
+            draw_circle(display, angle_s[i], pos_s[i], i * 90, i * 20, i * 8);
         } else if (i % 3 == 1) {
-            vector_display_set_color(display, 1.0f, 0.6f, 1.0f);  
-            draw_wheel(display, angle_s[i], pos_s[i], i * 90, i * 10);
+            vector_display_set_color(display, 1.0f, 0.7f, 1.0f);  
+            draw_wheel(display, angle_s[i], pos_s[i], i * 90, i * 20);
         } else {
-            vector_display_set_color(display, 0.6f, 1.0f, 0.6f);  
-            draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 10, i * 10);
+            vector_display_set_color(display, 0.7f, 1.0f, 0.7f);  
+            draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 20, i * 20);
         }
     }
 
     //
     // test pattern for lines
     //
-    vector_display_set_color( display, 1.0f, 0.6f, 0.6f);  
-    for (i = 0; i < 10; i++) {
+    vector_display_set_color(display, 1.0f, 0.7f, 0.7f);  
+    for (i = 0; i < 5; i++) {
         for (j = 0; j < i; j++) {
             vector_display_draw(display, 100, 100 + 100 * i, 400, 100 + 100 * i);
             vector_display_draw(display, 450, 100 + 100 * i, 450, 100 + 100 * i);

@@ -32,6 +32,11 @@ int vector_display_clear(vector_display_t *self);
 // add a vector to the display list; x/y are from [0,1)
 int vector_display_draw(vector_display_t *self, float x0, float y0, float x1, float y1);
 
+// draw connected lines
+int vector_display_begin_draw(vector_display_t *self, float x, float y);
+int vector_display_draw_to(vector_display_t *self, float x, float y);
+int vector_display_end_draw(vector_display_t *self);
+
 // set the drawing color
 int vector_display_set_color(vector_display_t *self, float r, float g, float b);
 
