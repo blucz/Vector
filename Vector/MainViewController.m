@@ -118,13 +118,13 @@ static void draw_box(vector_display_t *display, float x, float y, float w, float
 
         if (i % 3 == 0) {
             vector_display_set_color(display, 0.7f, 0.7f, 1.0f);  
-            draw_circle(display, angle_s[i], pos_s[i], i * 90, i * 20, i * 8);
+            draw_circle(display, angle_s[i], pos_s[i], i * 90, i * 12, i * 8);
         } else if (i % 3 == 1) {
             vector_display_set_color(display, 1.0f, 0.7f, 1.0f);  
-            draw_wheel(display, angle_s[i], pos_s[i], i * 90, i * 20);
+            draw_wheel(display, angle_s[i], pos_s[i], i * 90, i * 12);
         } else {
             vector_display_set_color(display, 0.7f, 1.0f, 0.7f);  
-            draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 20, i * 20);
+            draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 12, i * 12);
         }
     }
 
@@ -132,12 +132,12 @@ static void draw_box(vector_display_t *display, float x, float y, float w, float
     // test pattern for lines
     //
     vector_display_set_color(display, 1.0f, 0.7f, 0.7f);  
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 4; i++) {
         for (j = 0; j < i; j++) {
-            vector_display_draw(display, 100, 100 + 100 * i, 400, 100 + 100 * i);
-            vector_display_draw(display, 450, 100 + 100 * i, 450, 100 + 100 * i);
-            vector_display_draw(display, 500, 100 + 100 * i, 500, 100 + 100 * i);
-            vector_display_draw(display, 550, 100 + 100 * i, 550, 100 + 100 * i);
+            vector_display_draw(display, 100, 100 + 150 * i, 400, 100 + 150 * i);
+            vector_display_draw(display, 450, 100 + 150 * i, 450, 100 + 150 * i);
+            vector_display_draw(display, 500, 100 + 150 * i, 500, 100 + 150 * i);
+            vector_display_draw(display, 550, 100 + 150 * i, 550, 100 + 150 * i);
         }
     }
 

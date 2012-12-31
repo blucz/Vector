@@ -17,9 +17,9 @@
 #include <OpenGLES/ES2/glext.h>
 
 #define MAX_STEPS 300
-#define DEFAULT_STEPS 1 
-#define DEFAULT_DECAY 0.5f
-#define DEFAULT_INITIAL_DECAY 0.1f
+#define DEFAULT_STEPS 10
+#define DEFAULT_DECAY 0.8
+#define DEFAULT_INITIAL_DECAY 0.04
 #define DEFAULT_THICKNESS 80.0f
 #define TEXTURE_SIZE 128
 #define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
@@ -582,7 +582,7 @@ int vector_display_setup(vector_display_t *self) {
             if (distance > 1.0) distance = 1.0;
 
             double line = pow(12, -15 * distance) * 246.0/256.0;
-            double glow = pow(5,   -3 * distance) *  10.0/256.0;
+            double glow = pow(2,   -5 * distance) *  10.0/256.0;
             double mult = line + glow;
 
             int val = (int)round(mult * 256);
