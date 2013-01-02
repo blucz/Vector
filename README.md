@@ -16,12 +16,19 @@ The following files:
     vector_display.h
     vector_display_platform.h
     vector_display_platform_ios.c
+    vector_font_simplex.h
+    vector_font_simplex.c
+
+The font in the screenshots is the "simplex" font. More info availbale here:
+
+http://paulbourke.net/dataformats/hershey/
 
 implement a reusable and platform independent vector display. The remaining 
 files make up the iOS demo app.
 
 Screenshots:
 
-![screenshot](https://raw.github.com/blucz/Vector/master/images/screenshot.png)
 ![screenshot](https://raw.github.com/blucz/Vector/master/images/testpattern.png)
+
+![screenshot](https://raw.github.com/blucz/Vector/master/images/screenshot.png)
 
