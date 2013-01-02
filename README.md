@@ -20,7 +20,8 @@ The following files:
 implement a reusable and platform independent vector display. The remaining 
 files make up the iOS demo app.
 
-Screenshot (2048x1536, best viewed with high dpi display):
+Screenshots:
 
-![screenshot](https://raw.github.com/blucz/Vector/master/screenshot.png)
+![screenshot](https://raw.github.com/blucz/Vector/master/images/screenshot.png)
+![screenshot](https://raw.github.com/blucz/Vector/master/images/testpattern.png)
 
