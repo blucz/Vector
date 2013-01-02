@@ -12,7 +12,7 @@
 typedef struct vector_display vector_display_t;
 
 // create a new vector display
-int vector_display_new(vector_display_t **out_self, float width, float height);
+int vector_display_new(vector_display_t **out_self, double width, double height);
 
 // delete a vector display
 void vector_display_delete(vector_display_t *self);
@@ -30,26 +30,26 @@ int vector_display_teardown(vector_display_t *self);
 int vector_display_clear(vector_display_t *self);
 
 // add a vector to the display list; x/y are from [0,1)
-int vector_display_draw(vector_display_t *self, float x0, float y0, float x1, float y1);
+int vector_display_draw(vector_display_t *self, double x0, double y0, double x1, double y1);
 
 // draw connected lines
-int vector_display_begin_draw(vector_display_t *self, float x, float y);
-int vector_display_draw_to(vector_display_t *self, float x, float y);
+int vector_display_begin_draw(vector_display_t *self, double x, double y);
+int vector_display_draw_to(vector_display_t *self, double x, double y);
 int vector_display_end_draw(vector_display_t *self);
 
 // set the drawing color
-int vector_display_set_color(vector_display_t *self, float r, float g, float b);
+int vector_display_set_color(vector_display_t *self, double r, double g, double b);
 
 // set number of fade steps
 int vector_display_set_steps(vector_display_t *self, int steps);
 
 // set decay per step
-int vector_display_set_decay(vector_display_t *self, float decay);
+int vector_display_set_decay(vector_display_t *self, double decay);
 
 // set decay on first step
-int vector_display_set_initial_decay(vector_display_t *self, float initial_decay);
+int vector_display_set_initial_decay(vector_display_t *self, double initial_decay);
 
 // set thickness
-int vector_display_set_thickness(vector_display_t *self, float thickness);
+int vector_display_set_thickness(vector_display_t *self, double thickness);
 
 #endif

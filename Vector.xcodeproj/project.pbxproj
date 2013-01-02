@@ -21,6 +21,7 @@
 		D34DA93F165F0D0700AEA9C2 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA93E165F0D0700AEA9C2 /* OpenGLES.framework */; };
 		D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA941165F113E00AEA9C2 /* vector_display.c */; };
 		D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */; };
+		D3779FB516925E08008C7653 /* vector_font_simplex.c in Sources */ = {isa = PBXBuildFile; fileRef = D3779FB316925E08008C7653 /* vector_font_simplex.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,8 @@
 		D34DA941165F113E00AEA9C2 /* vector_display.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_display.c; sourceTree = "<group>"; };
 		D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_display_platform_ios.c; sourceTree = "<group>"; };
 		D34DA945165F118600AEA9C2 /* vector_display_platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector_display_platform.h; sourceTree = "<group>"; };
+		D3779FB316925E08008C7653 /* vector_font_simplex.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_font_simplex.c; sourceTree = "<group>"; };
+		D3779FB416925E08008C7653 /* vector_font_simplex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = vector_font_simplex.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +104,8 @@
 				D34DA937165F09FE00AEA9C2 /* MainViewController.h */,
 				D34DA938165F09FE00AEA9C2 /* MainViewController.m */,
 				D34DA940165F113300AEA9C2 /* vector_display.h */,
+				D3779FB316925E08008C7653 /* vector_font_simplex.c */,
+				D3779FB416925E08008C7653 /* vector_font_simplex.h */,
 				D34DA941165F113E00AEA9C2 /* vector_display.c */,
 				D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */,
 				D34DA945165F118600AEA9C2 /* vector_display_platform.h */,
@@ -193,6 +198,7 @@
 				D34DA939165F09FE00AEA9C2 /* MainViewController.m in Sources */,
 				D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */,
 				D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */,
+				D3779FB516925E08008C7653 /* vector_font_simplex.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
