@@ -4,9 +4,8 @@ Vector
 Vector emulates a vector display, like those found in Asteroids and Tempest 
 arcade games. It is implemented in OpenGL ES 2.0.
 
-In its current state, it targets the iPad. For best results,
-use a retina device. The vector effect is far more convincing with tiny 
-pixels.
+It targets the iPad. For best results, use an iPad 4. Vector runs poorly on the 
+simulator and I haven't tested anything slower than an iPad 4.
 
 In its current state, it's a sample program that demoes the most basic of vector 
 display functionality.
@@ -20,4 +19,8 @@ The following files:
 
 implement a reusable and platform independent vector display. The remaining 
 files make up the iOS demo app.
+
+Screenshot (2048x1536, best viewed with high dpi display):
+
+![screenshot](https://raw.github.com/blucz/Vector/master/screenshot.png)
 
