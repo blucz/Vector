@@ -20,7 +20,7 @@
 #define DEFAULT_STEPS 10
 #define DEFAULT_DECAY 0.8
 #define DEFAULT_INITIAL_DECAY 0.04
-#define DEFAULT_THICKNESS 80.0f
+#define DEFAULT_THICKNESS 60.0f
 #define TEXTURE_SIZE 128
 #define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
 
@@ -193,13 +193,13 @@ void draw_fan(vector_display_t *self, double cx, double cy, double pa, double a,
 
     int i;
     if (a2pa < pa2a) {
-        nsteps = max(1, a2pa / (M_PI / 8));
+        nsteps = max(1, round(a2pa / (M_PI / 8)));
         angles = alloca(sizeof(double) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = a + i * a2pa / nsteps;
         //debugf("%fd in %d steps", a2pa, nsteps);
     } else {
-        nsteps = max(1, pa2a / (M_PI / 8));
+        nsteps = max(1, round(pa2a / (M_PI / 8)));
         angles = alloca(sizeof(double) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = pa + i * pa2a / nsteps;
@@ -269,7 +269,7 @@ int vector_display_end_draw(vector_display_t *self) {
         double plen = sqrt(pow(px1-px0, 2) + pow(py1-py0, 2));
         double nlen = sqrt(pow(nx1-nx0, 2) + pow(ny1-ny0, 2));
 
-        double cr   = min(5.0, len  / 2);
+        double cr   = min(6.0, len  / 2);
         double pcr  = min(cr, plen / 2);
         double ncr  = min(cr, nlen / 2);
 
@@ -301,7 +301,7 @@ int vector_display_end_draw(vector_display_t *self) {
 
             if (ad > M_PI) {            // concave
                 double cxl = x0 + cr0 * sin_a, cyl = y0 - cr0 * cos_a;
-                draw_fan(self, cxl, cyl, pa, a, -fr, cr0+1.1);
+                draw_fan(self, cxl, cyl, pa, a, -fr, cr0+1.0); 
             } else {                    // convex
                 double cxr = x0 - cr0 * sin_a, cyr = y0 + cr0 * cos_a;
                 draw_fan(self, cxr, cyr, pa, a, fr, cr0);
@@ -486,14 +486,13 @@ int vector_display_setup(vector_display_t *self) {
 
             if (distance > 1.0) distance = 1.0;
 
-            double line = pow(12, -15 * distance) * 246.0/256.0;
-            double glow = pow(2,   -5 * distance) *  4.0/256.0;
+            double line = pow(12, -20 * distance) * 246.0/256.0;
+            double glow = pow(2,   -4 * distance) *  6.0/256.0;
             double mult = line + glow;
 
             int val = (int)round(mult * 256);
 
             if (distance < 0.01) val = 0xff;
-            //if (distance > 0.5 && distance < 1.0) val = 0xff;
 
             texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)val;
         }
@@ -512,7 +511,6 @@ int vector_display_setup(vector_display_t *self) {
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, texbuf);
     check_error("glTexImage2D");
-
 
     // get uniform locations
     self->uniform_modelview  = glGetUniformLocation(self->program, "inModelViewMatrix");
