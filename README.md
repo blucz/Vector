@@ -29,5 +29,3 @@ Screenshots
 
 ![screenshot](https://raw.github.com/blucz/Vector/master/images/testpattern.png)
 
-![screenshot](https://raw.github.com/blucz/Vector/master/images/screenshot.png)
-
