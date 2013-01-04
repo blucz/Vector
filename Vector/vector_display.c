@@ -17,10 +17,10 @@
 #include <OpenGLES/ES2/glext.h>
 
 #define MAX_STEPS 300
-#define DEFAULT_STEPS 10
+#define DEFAULT_STEPS 5
 #define DEFAULT_DECAY 0.8
 #define DEFAULT_INITIAL_DECAY 0.04
-#define DEFAULT_THICKNESS 60.0f
+#define DEFAULT_THICKNESS 70.0f
 #define TEXTURE_SIZE 128
 #define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
 
@@ -208,9 +208,9 @@ void draw_fan(vector_display_t *self, double cx, double cy, double pa, double a,
     //debugf("---- %f -> %f nsteps=%d", 360*pa/M_PI/2, 360*a/M_PI/2, 360*pa2a/M_PI/2, 360*a2pa/M_PI/2, nsteps);
 
     for (i = 1; i <= nsteps; i++) {
-        append_texpoint(self, cx + fr * sin(angles[i-1]), cy - fr * cos(angles[i-1]), 0.0f, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + fr * sin(angles[i-1]), cy - fr * cos(angles[i-1]), cr > 0 ? 0 : TEXTURE_SIZE,                                      HALF_TEXTURE_SIZE);
         append_texpoint(self, cx, cy,                                                 HALF_TEXTURE_SIZE + (cr / self->thickness * HALF_TEXTURE_SIZE), HALF_TEXTURE_SIZE);
-        append_texpoint(self, cx + fr * sin(angles[i]),   cy - fr * cos(angles[i]),   0.0f, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + fr * sin(angles[i]),   cy - fr * cos(angles[i]),   cr > 0 ? 0 : TEXTURE_SIZE,                                      HALF_TEXTURE_SIZE);
     }
 }
 
@@ -269,7 +269,7 @@ int vector_display_end_draw(vector_display_t *self) {
         double plen = sqrt(pow(px1-px0, 2) + pow(py1-py0, 2));
         double nlen = sqrt(pow(nx1-nx0, 2) + pow(ny1-ny0, 2));
 
-        double cr   = min(6.0, len  / 2);
+        double cr   = min(5.0, len  / 2);
         double pcr  = min(cr, plen / 2);
         double ncr  = min(cr, nlen / 2);
 
@@ -301,7 +301,7 @@ int vector_display_end_draw(vector_display_t *self) {
 
             if (ad > M_PI) {            // concave
                 double cxl = x0 + cr0 * sin_a, cyl = y0 - cr0 * cos_a;
-                draw_fan(self, cxl, cyl, pa, a, -fr, cr0+1.0); 
+                draw_fan(self, cxl, cyl, pa, a, -fr, -cr0);
             } else {                    // convex
                 double cxr = x0 - cr0 * sin_a, cyr = y0 + cr0 * cos_a;
                 draw_fan(self, cxr, cyr, pa, a, fr, cr0);
@@ -424,7 +424,8 @@ int vector_display_setup(vector_display_t *self) {
     "    varying vec2 TexCoord;                 \n"
     "                                           \n"
     "    void main() {                          \n"
-    "        gl_FragColor = Color * texture2D(tex1, TexCoord.st) * vec4(1.0, 1.0, 1.0, alpha);\n"
+    "        vec4 texColor = texture2D(tex1, TexCoord.st);\n"
+    "        gl_FragColor = Color * texColor * vec4(1.0, 1.0, 1.0, alpha);\n"
     "    }                                      \n";
     
     GLuint vertexShader;
@@ -486,15 +487,20 @@ int vector_display_setup(vector_display_t *self) {
 
             if (distance > 1.0) distance = 1.0;
 
-            double line = pow(12, -20 * distance) * 246.0/256.0;
-            double glow = pow(2,   -4 * distance) *  6.0/256.0;
-            double mult = line + glow;
+            double line = pow(12, -16 * distance);
+            double glow = pow(3,   -4 * distance) * 10.0/256.0;
+            double mult = max(0, min(1, line + glow));                  // clamp
 
-            int val = (int)round(mult * 256);
-
-            if (distance < 0.01) val = 0xff;
-
+            int val = (int)floor(mult * 255);
             texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)val;
+            
+            /* simulate increased dynamic range w/premultiplied alpha (doesn't work well) 
+            int val16 = (int)floor(mult * 65535);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = (unsigned char)(val16 >> 8);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = (unsigned char)(val16 >> 8);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = (unsigned char)(val16 >> 8);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)(val16 & 0xff);
+            */
         }
     }
 
@@ -546,8 +552,9 @@ int vector_display_update(vector_display_t *self) {
     glDisable(GL_STENCIL_TEST);
     glEnable(GL_BLEND);
     glEnable(GL_DITHER);
+
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
     glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // setup shaders
     glUseProgram(self->program);
