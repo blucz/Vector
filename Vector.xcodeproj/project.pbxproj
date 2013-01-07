@@ -22,6 +22,7 @@
 		D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA941165F113E00AEA9C2 /* vector_display.c */; };
 		D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */ = {isa = PBXBuildFile; fileRef = D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */; };
 		D3779FB516925E08008C7653 /* vector_font_simplex.c in Sources */ = {isa = PBXBuildFile; fileRef = D3779FB316925E08008C7653 /* vector_font_simplex.c */; };
+		D382C7161697C8EE00BF7D64 /* vector_display_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = D382C7141697C8EE00BF7D64 /* vector_display_utils.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +49,8 @@
 		D34DA945165F118600AEA9C2 /* vector_display_platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector_display_platform.h; sourceTree = "<group>"; };
 		D3779FB316925E08008C7653 /* vector_font_simplex.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_font_simplex.c; sourceTree = "<group>"; };
 		D3779FB416925E08008C7653 /* vector_font_simplex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = vector_font_simplex.h; sourceTree = "<group>"; };
+		D382C7141697C8EE00BF7D64 /* vector_display_utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = vector_display_utils.c; sourceTree = "<group>"; };
+		D382C7151697C8EE00BF7D64 /* vector_display_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = vector_display_utils.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +101,8 @@
 		D34DA916165F069300AEA9C2 /* Vector */ = {
 			isa = PBXGroup;
 			children = (
+				D382C7141697C8EE00BF7D64 /* vector_display_utils.c */,
+				D382C7151697C8EE00BF7D64 /* vector_display_utils.h */,
 				D34DA91F165F069300AEA9C2 /* VectorAppDelegate.h */,
 				D34DA920165F069300AEA9C2 /* VectorAppDelegate.m */,
 				D34DA917165F069300AEA9C2 /* Supporting Files */,
@@ -199,6 +204,7 @@
 				D34DA942165F113E00AEA9C2 /* vector_display.c in Sources */,
 				D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */,
 				D3779FB516925E08008C7653 /* vector_font_simplex.c in Sources */,
+				D382C7161697C8EE00BF7D64 /* vector_display_utils.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

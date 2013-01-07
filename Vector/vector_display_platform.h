@@ -11,5 +11,6 @@
 #define Vector_vector_display_platform_h
 
 void debugf(const char *fmt, ...);
+void failf(const char *fmt, ...);
 
 #endif

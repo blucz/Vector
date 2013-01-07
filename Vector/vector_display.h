@@ -17,7 +17,7 @@ int vector_display_new(vector_display_t **out_self, double width, double height)
 // delete a vector display
 void vector_display_delete(vector_display_t *self);
 
-// setup opengl, assumes context is already set
+// update the screen. make sure that the screen's FBO is bound
 int vector_display_update(vector_display_t *self);
 
 // setup opengl, assumes context is already set

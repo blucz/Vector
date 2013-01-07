@@ -30,7 +30,7 @@
     [EAGLContext setCurrentContext:self.context];
     
     int rc;
-    rc = vector_display_new(&display, 2048, 1536);
+    rc = vector_display_new(&display, 2048, 1536); 
     if (rc != 0) {
         NSLog(@"Failed to create vector display: rc=%d", rc);
         exit(EXIT_FAILURE);
@@ -131,7 +131,13 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
     }
     */
 
+    //vector_display_set_color(display, 0.7f, 0.7f, 1.0f);  
+    //vector_font_simplex_draw(display, 5, 105, 3.5, "()5pq");
+    //draw_circle(display, 200, 200, 100, 64);
+    //draw_circle(display, 400, 200, 50, 64);
 
+
+#if 1
     // 
     // test pattern for simplex font
     //
@@ -180,12 +186,12 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
     draw_wheel(display, 3 * M_PI / 4, 1700,  950, 100);
     draw_wheel(display, M_PI / 2,     1900,  950, 50);
     draw_wheel(display, M_PI / 4,     2000,  950, 20);
-
+#endif
 
     /*
-    draw_wheel(display, angle_s[i], pos_s[i], i * 90, i * 12);
-
-    draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 12, i * 12);
+    for (i = 0; i < 20; i++) {
+        vector_display_draw(display, 50 + 100 * i, 1200, 50 + 100 * i, 1400);     // draw line
+    }
     */
 
     //

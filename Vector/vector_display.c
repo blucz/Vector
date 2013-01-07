@@ -6,8 +6,9 @@
 //  Copyright (c) 2012 Brian Luczkiewicz. All rights reserved.
 //
 
-#include "vector_display_platform.h"
 #include "vector_display.h"
+#include "vector_display_platform.h"
+#include "vector_display_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -16,16 +17,21 @@
 #include <OpenGLES/ES2/gl.h>
 #include <OpenGLES/ES2/glext.h>
 
-#define MAX_STEPS 300
+#define MAX_STEPS 60
 #define DEFAULT_STEPS 5
 #define DEFAULT_DECAY 0.8
 #define DEFAULT_INITIAL_DECAY 0.04
-#define DEFAULT_THICKNESS 70.0f
+#define DEFAULT_THICKNESS 8.0f
 #define TEXTURE_SIZE 128
 #define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
 
 #define min(x,y) ((x) < (y) ? (x) : (y))
 #define max(x,y) ((x) > (y) ? (x) : (y))
+
+typedef struct {
+    float x, y, z;
+    float u, v;
+} nocolor_point_t;
 
 typedef struct {
     float x, y, z;
@@ -38,13 +44,35 @@ typedef struct {
 } pending_point_t;
 
 struct vector_display {
-    GLuint program;
-    GLuint uniform_modelview;
-    GLuint uniform_projection;
-    GLuint uniform_alpha;
-    GLuint uniform_tex;
+    GLuint fb_program;       // program for drawing to the fb
+    GLuint fb_uniform_modelview;
+    GLuint fb_uniform_projection;
+    GLuint fb_uniform_alpha;
+
+    GLuint screen_program;       // program for blitting to the screen
+    GLuint screen_uniform_modelview;
+    GLuint screen_uniform_projection;
+    GLuint screen_uniform_alpha;
+    GLuint screen_uniform_mult;         
+
+    GLuint fb_scene;                  // framebuffer object
+    GLuint fb_scene_texid;
+
+    GLuint blur_program;       // program for gaussian blur
+    GLuint blur_uniform_modelview;
+    GLuint blur_uniform_projection;
+    GLuint blur_uniform_scale;
+    GLuint blur_uniform_alpha;
+    GLuint blur_uniform_mult;         
+
+    GLuint fb_glow0;            // framebuffer for glow0
+    GLuint fb_glow0_texid;      // texture for blur
+
+    GLuint fb_glow1;            // framebuffer for glow1
+    GLuint fb_glow1_texid;      // texture for blur
 
     double width, height;
+    double glow_width, glow_height;
 
     int steps;
     double decay;
@@ -64,7 +92,10 @@ struct vector_display {
     GLuint *buffers;
     GLuint *buffernpoints;
 
-    GLuint texid;
+    GLuint screen_vertexbuffer;
+    GLuint glow_vertexbuffer;
+
+    GLuint linetexid;
 
     int did_setup;
 
@@ -75,8 +106,6 @@ struct vector_display {
 #define VERTEX_POS_INDEX       (0)
 #define VERTEX_COLOR_INDEX     (1)
 #define VERTEX_TEXCOORD_INDEX  (2)
-
-static GLuint load_shader(GLenum type, const char *shaderSrc);
 
 int vector_display_new(vector_display_t **out_self, double width, double height) {
     vector_display_t *self = (vector_display_t*)calloc(sizeof(vector_display_t), 1);
@@ -95,6 +124,8 @@ int vector_display_new(vector_display_t **out_self, double width, double height)
     self->r = self->g = self->b = self->a = 1.0f;
     self->width = width;
     self->height = height;
+    self->glow_width = width   / 3.0; 
+    self->glow_height = height / 3.0; 
     self->initial_decay = DEFAULT_INITIAL_DECAY;
     self->thickness = DEFAULT_THICKNESS;
     *out_self = self;
@@ -147,6 +178,7 @@ static void ensure_points(vector_display_t *self, int npoints) {
 
 static void append_texpoint(vector_display_t *self, double x, double y, double u, double v) {
     ensure_points(self, self->npoints + 1);
+
     self->points[self->npoints].x = x;
     self->points[self->npoints].y = y;
     self->points[self->npoints].z = 10000.0;
@@ -179,28 +211,60 @@ int vector_display_draw_to(vector_display_t *self, double x, double y) {
     return 0;
 }
 
-static double normalize(double a) {
+static float normalizef(float a) {
     while (a > 2*M_PI + FLT_EPSILON) a -= 2*M_PI;
     while (a < 0 - FLT_EPSILON)      a += 2*M_PI;
     return a;
 }
 
-void draw_fan(vector_display_t *self, double cx, double cy, double pa, double a, double fr, double cr) {
-    double *angles;
+static double normalize(double a) {
+    while (a > 2*M_PI + DBL_EPSILON) a -= 2*M_PI;
+    while (a < 0 - DBL_EPSILON)      a += 2*M_PI;
+    return a;
+}
+
+typedef struct {
+    float x0, y0, x1, y1;                      // nominal points
+    float a;                                   // angle
+    float sin_a, cos_a;                        // precomputed trig
+
+    float xl0, yl0, xl1, yl1;                  // left side of the box
+    float xr0, yr0, xr1, yr1;                  // right side of the box
+
+    int is_first, is_last;
+    int has_next, has_prev;                     // booleans indicating whether this line connects to prev/next
+    float prev_ad, next_ad;                    // angle differences to prev/next (if has_prev/has_next)
+
+    float xlt0, ylt0, xlt1, ylt1;              // coordinates of endcaps (if !has_prev/!has_next)
+    float xrt0, yrt0, xrt1, yrt1;              // coordinates of endcaps (if !has_prev/!has_next)
+
+    float len;
+} line_t;
+
+void draw_simple_fan(vector_display_t *self, float cx, float cy, float pa, float a, float t) {
+    float *angles;
     int     nsteps;
-    double  pa2a        = normalize(a - pa);
-    double  a2pa        = normalize(pa - a);
+    float  pa2a        = normalizef(a - pa);
+    float  a2pa        = normalizef(pa - a);
+
+    float s = 0;
+    float e = 0;
 
     int i;
     if (a2pa < pa2a) {
+        t = -t;
+        s = TEXTURE_SIZE;
+        e = 0;
         nsteps = max(1, round(a2pa / (M_PI / 8)));
-        angles = alloca(sizeof(double) * (nsteps + 1));
+        angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = a + i * a2pa / nsteps;
         //debugf("%fd in %d steps", a2pa, nsteps);
     } else {
+        s = 0;
+        e = TEXTURE_SIZE;
         nsteps = max(1, round(pa2a / (M_PI / 8)));
-        angles = alloca(sizeof(double) * (nsteps + 1));
+        angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = pa + i * pa2a / nsteps;
         //debugf("%fd in %d steps", pa2a, nsteps);
@@ -208,9 +272,65 @@ void draw_fan(vector_display_t *self, double cx, double cy, double pa, double a,
     //debugf("---- %f -> %f nsteps=%d", 360*pa/M_PI/2, 360*a/M_PI/2, 360*pa2a/M_PI/2, 360*a2pa/M_PI/2, nsteps);
 
     for (i = 1; i <= nsteps; i++) {
-        append_texpoint(self, cx + fr * sin(angles[i-1]), cy - fr * cos(angles[i-1]), cr > 0 ? 0 : TEXTURE_SIZE,                                      HALF_TEXTURE_SIZE);
-        append_texpoint(self, cx, cy,                                                 HALF_TEXTURE_SIZE + (cr / self->thickness * HALF_TEXTURE_SIZE), HALF_TEXTURE_SIZE);
-        append_texpoint(self, cx + fr * sin(angles[i]),   cy - fr * cos(angles[i]),   cr > 0 ? 0 : TEXTURE_SIZE,                                      HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + t * sin(angles[i-1]), cy - t * cos(angles[i-1]), s, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx, cy,                                               e, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + t * sin(angles[i]),   cy - t * cos(angles[i]),   s, HALF_TEXTURE_SIZE);
+    }
+}
+
+static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
+    int    i;
+    float t = self->thickness;
+
+    for (i = 0; i < nlines; i++) {
+        line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines];
+
+        if (line->has_prev) {   // draw fan for connection to previous
+            float  pa2a = normalizef(pline->a -  line->a);
+            float  a2pa = normalizef( line->a - pline->a);
+            if (a2pa < pa2a) {
+                draw_simple_fan(self, line->xr0, line->yr0, pline->a, line->a, t*2);
+            } else {
+                draw_simple_fan(self, line->xl0, line->yl0, pline->a, line->a, t*2);
+            }
+        }
+
+#if 1
+        append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl0,  line->yl0,  0.0f,         HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
+#else
+        self->a = 0.8;
+        append_texpoint(self, line->xr0,  line->yr0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr1,  line->yr1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl0,  line->yl0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr0,  line->yr0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        self->a = 1.0;
+#endif
+
+        if (!line->has_prev) { // draw startcap
+            append_texpoint(self, line->xl0,  line->yl0,  0.0f,         HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt0, line->ylt0, 0.0f,         0.0f);    
+            append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt0, line->ylt0, 0.0f,         0.0f);
+            append_texpoint(self, line->xrt0, line->yrt0, TEXTURE_SIZE, 0.0f);   
+        } 
+
+        if (!line->has_next) { // draw endcap
+            append_texpoint(self, line->xlt1, line->ylt1, 0.0f,         0.0f);    
+            append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt1, line->ylt1, 0.0f,         0.0f);
+            append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xrt1, line->yrt1, TEXTURE_SIZE, 0.0f);
+        }
+
     }
 }
 
@@ -220,138 +340,100 @@ int vector_display_end_draw(vector_display_t *self) {
         return 0;
     }
 
+    float t = self->thickness;
     int i;
-    double t = self->thickness;
+    int  first_last_same = abs(self->pending_points[0].x - self->pending_points[self->pending_npoints-1].x) < 0.1 &&
+                           abs(self->pending_points[0].y - self->pending_points[self->pending_npoints-1].y) < 0.1;
 
-    int   first_last_same = abs(self->pending_points[0].x - self->pending_points[self->pending_npoints-1].x) < 0.1 &&
-                            abs(self->pending_points[0].y - self->pending_points[self->pending_npoints-1].y) < 0.1;
+    // from the list of points, build a list of lines
+    int     nlines = self->pending_npoints-1;
+    line_t *lines  = (line_t*)alloca((self->pending_npoints-1) * sizeof(line_t));
 
     for (i = 1; i < self->pending_npoints; i++) {
-        int   is_first = i == 1;
-        int   is_last  = i == self->pending_npoints - 1;
-
-        // figure out what connections we have
-        int has_prev_connect = !is_first || (is_first && first_last_same);
-        int has_next_connect = !is_last  || (is_last  && first_last_same);
-
-        // precomputed info for prev line
-        int   pi     = i == 1 ? self->pending_npoints - 2 : i - 2;
-        double px0    = self->pending_points[pi].x;       // previous x0
-        double py0    = self->pending_points[pi].y;       // previous y0
-        double px1    = self->pending_points[i-1].x;      // previous x1
-        double py1    = self->pending_points[i-1].y;      // previous y1
-        double pa     = atan2(py1 - py0, px1 - px0);      // angle from positive x axis, increasing ccw, [-pi, pi]
-        if (pa < 0) pa += 2 * M_PI;
+        line_t *line = &lines[i-1];
+        line->is_first = i == 1;
+        line->is_last  = i == self->pending_npoints - 1;
 
         // precomputed info for current line
-        double x0    = self->pending_points[i-1].x;       // my x0
-        double y0    = self->pending_points[i-1].y;       // my y0
-        double x1    = self->pending_points[i].x;         // my x1
-        double y1    = self->pending_points[i].y;         // my y1
-        double a     = atan2(y1 - y0, x1 - x0);           // angle from positive x axis, increasing ccw, [-pi, pi]
-        double sin_a = sin(a), cos_a = cos(a);
+        line->x0    = self->pending_points[i-1].x;    
+        line->y0    = self->pending_points[i-1].y;     
+        line->x1    = self->pending_points[i].x;        
+        line->y1    = self->pending_points[i].y;         
+        line->a     = atan2(line->y1 - line->y0, line->x1 - line->x0); // angle from positive x axis, increasing ccw, [-pi, pi]
+        line->sin_a = sin(line->a);
+        line->cos_a = cos(line->a);
+        line->len  = sqrt(pow(line->x1-line->x0, 2) + pow(line->y1-line->y0, 2));
 
-        // precomputed info for next line
-        int   ni     = i + 1 != self->pending_npoints ? i + 1 : 1;
-        double nx0    = self->pending_points[i].x;        // next x0
-        double ny0    = self->pending_points[i].y;        // next y0
-        double nx1    = self->pending_points[ni].x;       // next x1
-        double ny1    = self->pending_points[ni].y;       // next y1
-        double na     = atan2(ny1 - ny0, nx1 - nx0);      // angle from positive x axis, increasing ccw, [-pi, pi]
+        // compute initial values for left,right,leftcenter,rightcenter points 
+        line->xl0 = line->x0 + t * line->sin_a; line->yl0 = line->y0 - t * line->cos_a;
+        line->xr0 = line->x0 - t * line->sin_a; line->yr0 = line->y0 + t * line->cos_a;
+        line->xl1 = line->x1 + t * line->sin_a; line->yl1 = line->y1 - t * line->cos_a;
+        line->xr1 = line->x1 - t * line->sin_a; line->yr1 = line->y1 + t * line->cos_a;
+    }
 
-        // location of the line in render space (note: these values are adjusted below to allow for connectors)
-        double xl0 = x0 + t * sin_a, yl0 = y0 - t * cos_a;
-        double xr0 = x0 - t * sin_a, yr0 = y0 + t * cos_a;
-        double xl1 = x1 + t * sin_a, yl1 = y1 - t * cos_a;
-        double xr1 = x1 - t * sin_a, yr1 = y1 + t * cos_a;
+    for (i = 0; i < nlines; i++) {
+        line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines], *nline = &lines[(i+1)%nlines];
 
-        double len  = sqrt(pow(x1-x0, 2) + pow(y1-y0, 2));
-        double plen = sqrt(pow(px1-px0, 2) + pow(py1-py0, 2));
-        double nlen = sqrt(pow(nx1-nx0, 2) + pow(ny1-ny0, 2));
+        // figure out what connections we have
+        line->has_prev = (!line->is_first || (line->is_first && first_last_same));
+        line->has_next = (!line->is_last  || (line->is_last  && first_last_same));
 
-        double cr   = min(5.0, len  / 2);
-        double pcr  = min(cr, plen / 2);
-        double ncr  = min(cr, nlen / 2);
-
-        if (has_next_connect) {
-            double cr1     = min(cr, ncr);
-            double ad      = normalize(na - a);
-            double shorten = (cr1 * sin(ad/2)) / cos(ad/2);
-
-            if (ad > M_PI) shorten = -shorten;
-
-            xl1 = xl1 - shorten * cos_a; yl1 = yl1 - shorten * sin_a;
-            xr1 = xr1 - shorten * cos_a; yr1 = yr1 - shorten * sin_a;
-            x1  = x1  - shorten * cos_a; y1  = y1  - shorten * sin_a;
-        }
-
-        if (has_prev_connect) {
-            // shorten start of line to compensate for the size of the connector triangles
-            double cr0     = min(cr, pcr);
-            double ad      = normalize(a - pa);
-            double shorten = (cr0 * sin(ad/2)) / cos(ad/2);
-            double fr      = t + cr0;    // fan radius
-
-            if (ad > M_PI) shorten = -shorten;
-
-            // shorten line
-            xl0 = xl0 + shorten * cos_a; yl0 = yl0 + shorten * sin_a;
-            xr0 = xr0 + shorten * cos_a; yr0 = yr0 + shorten * sin_a;
-            x0  = x0  + shorten * cos_a; y0  = y0  + shorten * sin_a;
-
-            if (ad > M_PI) {            // concave
-                double cxl = x0 + cr0 * sin_a, cyl = y0 - cr0 * cos_a;
-                draw_fan(self, cxl, cyl, pa, a, -fr, -cr0);
-            } else {                    // convex
-                double cxr = x0 - cr0 * sin_a, cyr = y0 + cr0 * cos_a;
-                draw_fan(self, cxr, cyr, pa, a, fr, cr0);
+        line->prev_ad = normalizef(line->a - pline->a);
+        line->next_ad = normalizef(line->a - nline->a);
+        
+        if (line->has_prev) { 
+            float  pa2a = normalizef(pline->a -  line->a);
+            float  a2pa = normalizef( line->a - pline->a);
+            if (a2pa <= (M_PI / 2 + FLT_EPSILON) || pa2a <= (M_PI / 2 + FLT_EPSILON)) {
+                if (a2pa < pa2a) {
+                    float u = t * sin(a2pa/2) / cos(a2pa/2);
+                    line->xr0  = line->xr0  + u * line->cos_a; line->yr0  = line->yr0  + u * line->sin_a;
+                    line->xl0  = line->xl0  + u * line->cos_a; line->yl0  = line->yl0  + u * line->sin_a;
+                } else {
+                    float u = t * sin(pa2a/2) / cos(pa2a/2);
+                    line->xl0  = line->xl0  + u * line->cos_a; line->yl0  = line->yl0  + u * line->sin_a;
+                    line->xr0  = line->xr0  + u * line->cos_a; line->yr0  = line->yr0  + u * line->sin_a;
+                }
+            } else {
+                line->has_prev = 0;
             }
         }
 
-        // left side
-        append_texpoint(self, x0,  y0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, x1,  y1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, xl1, yl1, 0.0f,              HALF_TEXTURE_SIZE);
-        append_texpoint(self, x0,  y0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, xl0, yl0, 0.0f,              HALF_TEXTURE_SIZE);
-        append_texpoint(self, xl1, yl1, 0.0f,              HALF_TEXTURE_SIZE);
-
-        // right side
-        append_texpoint(self, x1,  y1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, x0,  y0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, xr1, yr1, TEXTURE_SIZE,      HALF_TEXTURE_SIZE);
-        append_texpoint(self, xr1, yr1, TEXTURE_SIZE,      HALF_TEXTURE_SIZE);
-        append_texpoint(self, x0,  y0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, xr0, yr0, TEXTURE_SIZE,      HALF_TEXTURE_SIZE);
-
-        if (!has_next_connect) {
-            // draw endcap
-            double xlt1 = xl1 + t * cos_a;
-            double ylt1 = yl1 + t * sin_a;
-            double xrt1 = xr1 + t * cos_a;
-            double yrt1 = yr1 + t * sin_a;
-            append_texpoint(self, xl1, yl1, 0.0f, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xlt1, ylt1, 0.0f, 0.0f);    
-            append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xr1, yr1, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xlt1, ylt1, 0.0f, 0.0f);
-            append_texpoint(self, xrt1, yrt1, TEXTURE_SIZE, 0.0f);
+        if (line->has_next) {
+            float  na2a = normalizef(nline->a -  line->a);
+            float  a2na = normalizef( line->a - nline->a);
+            if (a2na <= (M_PI / 2 + FLT_EPSILON) || na2a <= (M_PI / 2 + FLT_EPSILON)) {
+                if (a2na < na2a) {
+                    float u = t * sin(a2na/2) / cos(a2na/2);
+                    line->xl1  = line->xl1  - u * line->cos_a; line->yl1  = line->yl1  - u * line->sin_a;
+                    line->xr1  = line->xr1  - u * line->cos_a; line->yr1  = line->yr1  - u * line->sin_a;
+                } else {
+                    float u = t * sin(na2a/2) / cos(na2a/2);
+                    line->xr1  = line->xr1  - u * line->cos_a; line->yr1  = line->yr1  - u * line->sin_a;
+                    line->xl1  = line->xl1  - u * line->cos_a; line->yl1  = line->yl1  - u * line->sin_a;
+                }
+            } else {
+                line->has_next = 0;
+            }
         }
 
-        if (!has_prev_connect) {
-            // draw startcap
-            double xlt0 = xl0 - t * cos_a;
-            double ylt0 = yl0 - t * sin_a;
-            double xrt0 = xr0 - t * cos_a;
-            double yrt0 = yr0 - t * sin_a;
-            append_texpoint(self, xl0, yl0, 0.0f, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xlt0, ylt0, 0.0f, 0.0f);    
-            append_texpoint(self, xr0, yr0, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xr0, yr0, TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, xlt0, ylt0, 0.0f, 0.0f);
-            append_texpoint(self, xrt0, yrt0, TEXTURE_SIZE, 0.0f);   
+        if (!line->has_prev) {
+            line->xlt0 = line->xl0 - t * line->cos_a; 
+            line->ylt0 = line->yl0 - t * line->sin_a;
+            line->xrt0 = line->xr0 - t * line->cos_a; 
+            line->yrt0 = line->yr0 - t * line->sin_a;
+        }
+
+        if (!line->has_next) {
+            line->xlt1 = line->xl1 + t * line->cos_a; 
+            line->ylt1 = line->yl1 + t * line->sin_a;
+            line->xrt1 = line->xr1 + t * line->cos_a;
+            line->yrt1 = line->yr1 + t * line->sin_a;
         }
     }
+
+    // draw the lines
+    draw_lines(self, lines, nlines);
 
     self->pending_npoints = 0;
 
@@ -388,15 +470,72 @@ int vector_display_set_decay(vector_display_t *self, double decay) {
     return 0;
 }
 
-static void check_error(const char *desc) {
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR) {
-        debugf("opengl error in %s: %d", desc, (int)err);
+void gen_linetex(vector_display_t *self) {
+    // generate the texture
+    hfloat texbuf[TEXTURE_SIZE * TEXTURE_SIZE * 4];
+    memset(texbuf, 0xff, sizeof(texbuf));
+    int x,y;
+    for (x = 0; x < TEXTURE_SIZE; x++) {
+        for (y = 0; y < TEXTURE_SIZE; y++) {
+            double distance = sqrt(pow(x-HALF_TEXTURE_SIZE, 2) + pow(y-HALF_TEXTURE_SIZE, 2)) / (double)HALF_TEXTURE_SIZE;
+
+            if (distance > 1.0) distance = 1.0;
+
+            double line = pow(16, -2 * distance);
+            double glow = pow(2,  -4 * distance) / 10.0;          
+            glow = 0;
+            double val  = max(0, min(1, line + glow));                  // clamp
+
+            //if (distance < 0.1) val = 1.0;
+
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = float_to_hfloat(1.0); 
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = float_to_hfloat(1.0); 
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = float_to_hfloat(1.0); 
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = float_to_hfloat(val);
+        }
     }
+
+    // load and bind the texture
+    glGenTextures(1, &self->linetexid);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, self->linetexid);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_HALF_FLOAT_OES, texbuf);
+    vector_display_check_error("glTexImage2D");
 }
 
 int vector_display_setup(vector_display_t *self) {    
-    const char *vShaderStr =
+    const char *nocolor_vertex_shader_text =
+    "    uniform mat4 inProjectionMatrix;       \n"
+    "    uniform mat4 inModelViewMatrix;        \n"
+    "                                           \n"
+    "    attribute vec2 inTexCoord;             \n"
+    "    attribute vec4 inPosition;             \n"
+    "                                           \n"
+    "    varying vec2 TexCoord;                 \n"
+    "                                           \n"
+    "    void main() {                          \n"
+    "        gl_Position = inProjectionMatrix * inModelViewMatrix * inPosition;\n"
+    "        TexCoord    = inTexCoord;          \n"
+    "    }\n";
+
+    const char *blit_fragment_shader_text =
+    "    precision mediump float;               \n"
+    "    uniform sampler2D tex1;                \n"
+    "    varying vec2 TexCoord;                 \n"
+    "    uniform float alpha;                   \n"
+    "    uniform float mult;                    \n"
+    "                                           \n"
+    "    void main() {                          \n"
+    "        gl_FragColor = texture2D(tex1, TexCoord.st) * vec4(mult, mult, mult, alpha*mult);\n"
+    "    }                                      \n";
+    
+    const char *fb_vertex_shader_text =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
     "                                           \n"
@@ -407,14 +546,13 @@ int vector_display_setup(vector_display_t *self) {
     "    varying vec4 Color;                    \n"
     "    varying vec2 TexCoord;                 \n"
     "                                           \n"
-    "    void main()                            \n"
-    "    {                                      \n"
+    "    void main() {                          \n"
     "        gl_Position = inProjectionMatrix * inModelViewMatrix * inPosition;\n"
     "        Color       = inColor;             \n"
     "        TexCoord    = inTexCoord;          \n"
     "    }\n";
 
-    const char *fShaderStr =
+    const char *fb_fragment_shader_text =
     "    precision mediump float;               \n"
     "                                           \n"
     "    uniform sampler2D tex1;                \n"
@@ -427,111 +565,186 @@ int vector_display_setup(vector_display_t *self) {
     "        vec4 texColor = texture2D(tex1, TexCoord.st);\n"
     "        gl_FragColor = Color * texColor * vec4(1.0, 1.0, 1.0, alpha);\n"
     "    }                                      \n";
-    
-    GLuint vertexShader;
-    GLuint fragmentShader;
-    GLuint program;
-    GLint linked;
+
+    const char *blur_fragment_shader_text =
+    "    precision mediump float;               \n"
+    "    uniform sampler2D tex1;                \n"
+    "    uniform vec2      scale;               \n"
+    "    varying vec2      TexCoord;            \n"
+    "    uniform float     alpha;               \n"
+    "    uniform float     mult;                \n"
+    "                                           \n"
+    "    void main() {                          \n"
+    "       vec4 color = vec4(0,0,0,0);         \n"
+    "       color += texture2D(tex1, vec2(TexCoord.x-4.0*scale.x, TexCoord.y-4.0*scale.y))*0.05;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x-3.0*scale.x, TexCoord.y-3.0*scale.y))*0.09;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x-2.0*scale.x, TexCoord.y-2.0*scale.y))*0.12;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x-1.0*scale.x, TexCoord.y-1.0*scale.y))*0.15;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x+0.0*scale.x, TexCoord.y+0.0*scale.y))*0.16;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x+1.0*scale.x, TexCoord.y+1.0*scale.y))*0.15;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x+2.0*scale.x, TexCoord.y+2.0*scale.y))*0.12;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x+3.0*scale.x, TexCoord.y+3.0*scale.y))*0.09;\n"
+    "       color += texture2D(tex1, vec2(TexCoord.x+4.0*scale.x, TexCoord.y+4.0*scale.y))*0.05;\n"
+    "       gl_FragColor = color * vec4(mult,mult,mult,alpha*mult);\n"
+    "    }                                      \n";
+
+    int rc;
+    GLuint vertex_shader;
+    GLuint fragment_shader;
 
     self->did_setup = 1;
     
-    // Load the vertex/fragment shaders
-    vertexShader   = load_shader(GL_VERTEX_SHADER, vShaderStr);
-    fragmentShader = load_shader(GL_FRAGMENT_SHADER, fShaderStr);
-    
-    if (vertexShader == 0) return -1;
-    if (fragmentShader == 0) return -1;
-    
-    // Create the program object
-    program = glCreateProgram();
-    if(program == 0)
-        return -1;
-    
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    
-    glBindAttribLocation(program, VERTEX_COLOR_INDEX, "inColor");
-    glBindAttribLocation(program, VERTEX_POS_INDEX,   "inPosition");
-    glBindAttribLocation(program, VERTEX_TEXCOORD_INDEX, "inTexCoord");
-    
-    // Link the program
-    glLinkProgram(program);
-    // Check the link status
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if(!linked)
-    {
-        GLint infoLen = 0;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLen);
-        
-        if(infoLen > 1)
-        {
-            char* infoLog = malloc(sizeof(char) * infoLen);
-            glGetProgramInfoLog(program, infoLen, NULL, infoLog);
-            debugf("Error linking program:\n%s\n", infoLog);
-            free(infoLog);
-        }
-        glDeleteProgram(program);
-        return -1;
-    }
+    // Set up the program for the framebuffer
+    vertex_shader   = vector_display_load_shader(GL_VERTEX_SHADER,   fb_vertex_shader_text);
+    if (vertex_shader   == 0) return -1;
+    fragment_shader = vector_display_load_shader(GL_FRAGMENT_SHADER, fb_fragment_shader_text);
+    if (fragment_shader == 0) return -1;
+    self->fb_program = glCreateProgram();
+    if(self->fb_program == 0) return -1;
+    glAttachShader(self->fb_program, vertex_shader);
+    glAttachShader(self->fb_program, fragment_shader);
+    glBindAttribLocation(self->fb_program, VERTEX_COLOR_INDEX, "inColor");
+    glBindAttribLocation(self->fb_program, VERTEX_POS_INDEX,   "inPosition");
+    glBindAttribLocation(self->fb_program, VERTEX_TEXCOORD_INDEX, "inTexCoord");
+    glLinkProgram(self->fb_program);
+    rc = vector_display_check_program_link(self->fb_program);
+    if (rc < 0) return rc;
+    self->fb_uniform_modelview  = glGetUniformLocation(self->fb_program, "inModelViewMatrix");
+    self->fb_uniform_projection = glGetUniformLocation(self->fb_program, "inProjectionMatrix");
+    self->fb_uniform_alpha      = glGetUniformLocation(self->fb_program, "alpha");
 
-    // Store the program object
-    self->program = program;
+    // Set up the program for the screen
+    vertex_shader   = vector_display_load_shader(GL_VERTEX_SHADER,   nocolor_vertex_shader_text);
+    if (vertex_shader   == 0) return -1;
+    fragment_shader = vector_display_load_shader(GL_FRAGMENT_SHADER, blit_fragment_shader_text);
+    if (fragment_shader == 0) return -1;
+    self->screen_program = glCreateProgram();
+    if(self->screen_program == 0) return -1;
+    glAttachShader(self->screen_program, vertex_shader);
+    glAttachShader(self->screen_program, fragment_shader);
+    glBindAttribLocation(self->screen_program, VERTEX_POS_INDEX,   "inPosition");
+    glBindAttribLocation(self->screen_program, VERTEX_TEXCOORD_INDEX, "inTexCoord");
+    glLinkProgram(self->screen_program);
+    rc = vector_display_check_program_link(self->screen_program);
+    if (rc < 0) return rc;
+    self->screen_uniform_modelview  = glGetUniformLocation(self->screen_program, "inModelViewMatrix");
+    self->screen_uniform_projection = glGetUniformLocation(self->screen_program, "inProjectionMatrix");
+    self->screen_uniform_alpha      = glGetUniformLocation(self->screen_program, "alpha");
+    self->screen_uniform_mult       = glGetUniformLocation(self->screen_program, "mult");
 
-    // generate the texture
-    unsigned char texbuf[TEXTURE_SIZE * TEXTURE_SIZE * 4];
-    memset(texbuf, 0xff, sizeof(texbuf));
-    int x,y;
-    for (x = 0; x < TEXTURE_SIZE; x++) {
-        for (y = 0; y < TEXTURE_SIZE; y++) {
-            double distance = sqrt(pow(x-HALF_TEXTURE_SIZE, 2) + pow(y-HALF_TEXTURE_SIZE, 2)) / (double)HALF_TEXTURE_SIZE;
+    // Set up the program for blur
+    vertex_shader   = vector_display_load_shader(GL_VERTEX_SHADER,   nocolor_vertex_shader_text);
+    if (vertex_shader   == 0) return -1;
+    fragment_shader = vector_display_load_shader(GL_FRAGMENT_SHADER, blur_fragment_shader_text);
+    if (fragment_shader == 0) return -1;
+    self->blur_program = glCreateProgram();
+    if(self->blur_program == 0) return -1;
+    glAttachShader(self->blur_program, vertex_shader);
+    glAttachShader(self->blur_program, fragment_shader);
+    glBindAttribLocation(self->blur_program, VERTEX_POS_INDEX,   "inPosition");
+    glBindAttribLocation(self->blur_program, VERTEX_TEXCOORD_INDEX, "inTexCoord");
+    glLinkProgram(self->blur_program);
+    rc = vector_display_check_program_link(self->blur_program);
+    if (rc < 0) return rc;
+    self->blur_uniform_modelview  = glGetUniformLocation(self->blur_program, "inModelViewMatrix");
+    self->blur_uniform_projection = glGetUniformLocation(self->blur_program, "inProjectionMatrix");
+    self->blur_uniform_scale      = glGetUniformLocation(self->blur_program, "scale");                         
+    self->blur_uniform_alpha      = glGetUniformLocation(self->blur_program, "alpha");                         
+    self->blur_uniform_mult       = glGetUniformLocation(self->blur_program, "mult");
 
-            if (distance > 1.0) distance = 1.0;
+    // generate the line texture
+    gen_linetex(self);
 
-            double line = pow(12, -16 * distance);
-            double glow = pow(3,   -4 * distance) * 10.0/256.0;
-            double mult = max(0, min(1, line + glow));                  // clamp
+    // set up the framebuffer for the scene
+    glGenFramebuffers(1, &self->fb_scene);                                                                      vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_scene_texid);                                                                    vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);                                                          vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);                                                         vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->width, self->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);     vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_scene_texid, 0);       vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
 
-            int val = (int)floor(mult * 255);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)val;
-            
-            /* simulate increased dynamic range w/premultiplied alpha (doesn't work well) 
-            int val16 = (int)floor(mult * 65535);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = (unsigned char)(val16 >> 8);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = (unsigned char)(val16 >> 8);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = (unsigned char)(val16 >> 8);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)(val16 & 0xff);
-            */
-        }
-    }
+    // set up the glow0 framebuffer
+    glGenFramebuffers(1, &self->fb_glow0);                                                                            vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_glow0_texid);                                                                          vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);                                                                vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_glow0_texid);                                                               vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow0_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
 
-    // load and bind the texture
+    // set up the glow1 framebuffer
+    glGenFramebuffers(1, &self->fb_glow1);                                                                            vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_glow1_texid);                                                                          vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);                                                                vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);                                                               vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow1_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
 
-    glGenTextures(1, &self->texid);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, self->texid);
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, texbuf);
-    check_error("glTexImage2D");
-
-    // get uniform locations
-    self->uniform_modelview  = glGetUniformLocation(self->program, "inModelViewMatrix");
-    self->uniform_projection = glGetUniformLocation(self->program, "inProjectionMatrix");
-    self->uniform_alpha      = glGetUniformLocation(self->program, "alpha");
-    self->uniform_tex        = glGetUniformLocation(self->program, "tex");
-    
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     glGenBuffers(self->steps, self->buffers);
-    
+
+    // set up vertex buffer for painting the screen
+    glGenBuffers(1, &self->screen_vertexbuffer);
+    nocolor_point_t screen_points[] = {
+    //    x            y             z           u, v
+    //   ------------------------------------------------------------
+        { 0,           0,            10000,      0, 1 },        // upper left triangle
+        { self->width+1, self->height+1, 10000,      1, 0 },
+        { self->width+1, 0,            10000,      1, 1 },
+
+        { 0,           0,            10000,      0, 1 },        // lower right triangle
+        { 0,           self->height+1, 10000,      0, 0 },
+        { self->width+1, self->height+1, 10000,      1, 0 },
+    };
+
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screen_points), screen_points, GL_STATIC_DRAW);
+
+    // set up vertex buffer for painting the screen
+    glGenBuffers(1, &self->glow_vertexbuffer);
+    nocolor_point_t glow_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+        { self->glow_width, 0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->glow_height, 10000,      0, 0 },
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+    };
+
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glow_points), glow_points, GL_STATIC_DRAW);
+
     return 0;
 }
 
 int vector_display_update(vector_display_t *self) {
+    GLfloat glow_projmat[] = {
+        2.0f/self->glow_width, 0, 0, 0,
+        0, -2.0f/self->glow_height, 0, 0,
+        0, 0, -2.0f/70001.0f, 0,
+        -1.0f,1.0f,-1.0f,1.0f
+    };
+
     GLfloat projmat[] = {
         2.0f/self->width, 0, 0, 0,
         0, -2.0f/self->height, 0, 0,
@@ -546,21 +759,33 @@ int vector_display_update(vector_display_t *self) {
         0,0,-70000.0f,1.0f 
     };
 
-    // clear the screen
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_CULL_FACE);
+    // save the framebuffer for the final draw
+    GLuint drawbuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&drawbuffer); 
+
+    // bind the framebuffer used for rendering the scene
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);                                                                
+    glViewport(0, 0, self->width, self->height);
+
+    // set up opengl options
+    glEnable(GL_CULL_FACE);
     glDisable(GL_STENCIL_TEST);
     glEnable(GL_BLEND);
-    glEnable(GL_DITHER);
-
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX_EXT);
     glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
 
+    // clear the framebuffer
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     // setup shaders
-    glUseProgram(self->program);
-    glUniformMatrix4fv(self->uniform_projection, 1, GL_FALSE, projmat);
-    glUniformMatrix4fv(self->uniform_modelview, 1, GL_FALSE, mvmat);
-    glUniform1f(self->uniform_alpha, 1.0f);
+    glUseProgram(self->fb_program);
+    glUniformMatrix4fv(self->fb_uniform_projection, 1, GL_FALSE, projmat);
+    glUniformMatrix4fv(self->fb_uniform_modelview, 1, GL_FALSE, mvmat);
+    glUniform1f(self->fb_uniform_alpha, 1.0f);
+
+    // bind the line texture
+    glBindTexture(GL_TEXTURE_2D, self->linetexid);
 
     // advance step
     self->step = (self->step + 1) % self->steps;
@@ -590,7 +815,7 @@ int vector_display_update(vector_display_t *self) {
                 alpha = pow(self->decay, stepi-1) * self->initial_decay;
             }
 
-            glUniform1f(self->uniform_alpha, alpha); 
+            glUniform1f(self->fb_uniform_alpha, alpha); 
             glBindBuffer(GL_ARRAY_BUFFER, self->buffers[i]);
             glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(point_t), 0);
             glVertexAttribPointer(VERTEX_COLOR_INDEX, 4, GL_FLOAT, GL_FALSE, sizeof(point_t), (void*)(3 * sizeof(float)));
@@ -602,54 +827,103 @@ int vector_display_update(vector_display_t *self) {
         }
     }
 
-#if 0
-        /* DRAW A TEST TRIANGLE */
-        GLfloat vVertices[] = { 100.0f, 100.0f, 10000.0f, 100.0f, 200.0f, 10000.0f, 200.0f, 200.0f, 10000.0f };
-        GLfloat vColors[] = { 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
-        glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_FALSE, 0, vVertices);
-        glVertexAttribPointer(VERTEX_COLOR_INDEX, 3, GL_FLOAT, GL_FALSE, 0, vColors);
-        glEnableVertexAttribArray(VERTEX_POS_INDEX);
-        glEnableVertexAttribArray(VERTEX_COLOR_INDEX);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-#endif
+    // 
+    // setup for glow post-processing
+    //
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(self->blur_program);
+    glUniformMatrix4fv(self->blur_uniform_projection, 1, GL_FALSE, glow_projmat);
+    glUniformMatrix4fv(self->blur_uniform_modelview, 1, GL_FALSE, mvmat);
+
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
+    glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
+    glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(VERTEX_POS_INDEX);
+    glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
+    glUniform1f(self->blur_uniform_alpha, 1.0); 
+    glUniform1f(self->blur_uniform_mult, 1.05); 
+
+    glViewport(0, 0, self->glow_width, self->glow_height);
+
+    glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
+
+    for (int j = 0; j < 3; j++) {
+        // render the glow1 texture to the glow0 buffer with horizontal blur
+        glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUniform2f(self->blur_uniform_scale, 1.0/self->glow_width, 0.0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, self->fb_glow0_texid);
+        
+        // render the glow0 texture to the glow1 buffer with vertical blur
+        glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUniform2f(self->blur_uniform_scale, 0, 1.0/self->glow_height);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
+    }
+
+    // set up the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
+    glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
+    glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(VERTEX_POS_INDEX);
+    glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
+
+    // draw
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    //
+    // render scene + glow1 to the screen
+    //
+    glBindFramebuffer(GL_FRAMEBUFFER, drawbuffer);
+    glViewport(0, 0, self->width, self->height);
+
+    // clear the screen
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // setup shaders
+    glUseProgram(self->screen_program);
+    glUniformMatrix4fv(self->screen_uniform_projection, 1, GL_FALSE, projmat);
+    glUniformMatrix4fv(self->screen_uniform_modelview, 1, GL_FALSE, mvmat);
+
+    // set up the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen_vertexbuffer);
+    glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
+    glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(VERTEX_POS_INDEX);
+    glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
+
+    // set up blending for the final compositing
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+
+    // paint the scene
+    glUniform1f(self->screen_uniform_alpha, 1.0); 
+    glUniform1f(self->screen_uniform_mult, 1.0); 
+    glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // blend in the glow
+    glUniform1f(self->screen_uniform_mult, 1.5); 
+    glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     return 0;
 }
 
 int vector_display_teardown(vector_display_t *self) {
-    glDeleteProgram(self->program);
+    glDeleteProgram(self->fb_program);
+    glDeleteProgram(self->screen_program);
+    glDeleteFramebuffers(1, &self->fb_scene);
     return -1;
 }
 
 void vector_display_delete(vector_display_t *self) {
     free(self);
 }
-
-// NOTE: returns 0 on failure
-static GLuint load_shader(GLenum type, const char *shaderSrc) {
-    GLuint shader;
-    GLint compiled;
-    
-    shader = glCreateShader(type);
-    if(shader == 0)
-        return 0;
-
-    glShaderSource(shader, 1, &shaderSrc, NULL);
-    glCompileShader(shader);
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-
-    if(!compiled) {
-        GLint infoLen = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
-        if(infoLen > 1) {
-            char* infoLog = malloc(sizeof(char) * infoLen);
-            glGetShaderInfoLog(shader, infoLen, NULL, infoLog);
-            debugf("Error compiling shader:\n%s\n", infoLog);
-            free(infoLog);
-        }
-        glDeleteShader(shader);
-        return 0;
-    }
-    return shader;
-}
-
