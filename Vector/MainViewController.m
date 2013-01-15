@@ -112,7 +112,7 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
 
     vector_display_clear(display);
 
-    /*
+#if 0
     for (i = 0; i < 15; i++) {
         pos_s[i] += i/2.0f;
         if (pos_s[i] > 2048) pos_s[i] -= 2048;
@@ -129,13 +129,9 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
             draw_box(display, pos_s[i] - i * 5, i * 90 - i * 5, i * 12, i * 12);
         }
     }
-    */
+#endif
 
-    //vector_display_set_color(display, 0.7f, 0.7f, 1.0f);  
-    //vector_font_simplex_draw(display, 5, 105, 3.5, "()5pq");
-    //draw_circle(display, 200, 200, 100, 64);
-    //draw_circle(display, 400, 200, 50, 64);
-
+    //vector_font_simplex_draw(display, 10, 180, 3.5, "i &");
 
 #if 1
     // 
@@ -188,11 +184,15 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
     draw_wheel(display, M_PI / 4,     2000,  950, 20);
 #endif
 
-    /*
-    for (i = 0; i < 20; i++) {
-        vector_display_draw(display, 50 + 100 * i, 1200, 50 + 100 * i, 1400);     // draw line
+#if 0
+    vector_display_set_color(display, 1.0f, 0.7f, 1.0f);  
+    int x,y;
+    for (x = 100; x < 2000; x += 100) {
+        for (y = 100; y < 1500; y += 100) {
+            draw_wheel(display, M_PI / 4,     x, y, 20);       
+        }
     }
-    */
+#endif
 
     //
     // finish

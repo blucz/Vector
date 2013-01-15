@@ -6,6 +6,8 @@
 //  Copyright (c) 2012 Brian Luczkiewicz. All rights reserved.
 //
 
+//#define DEBUG_TRIANGLES 1
+
 #include "vector_display.h"
 #include "vector_display_platform.h"
 #include "vector_display_utils.h"
@@ -92,8 +94,10 @@ struct vector_display {
     GLuint *buffers;
     GLuint *buffernpoints;
 
-    GLuint screen_vertexbuffer;
-    GLuint glow_vertexbuffer;
+    GLuint screen2screen_vertexbuffer;
+    GLuint screen2glow_vertexbuffer;
+    GLuint glow2screen_vertexbuffer;
+    GLuint glow2glow_vertexbuffer;
 
     GLuint linetexid;
 
@@ -233,36 +237,32 @@ typedef struct {
 
     int is_first, is_last;
     int has_next, has_prev;                     // booleans indicating whether this line connects to prev/next
-    float prev_ad, next_ad;                    // angle differences to prev/next (if has_prev/has_next)
 
     float xlt0, ylt0, xlt1, ylt1;              // coordinates of endcaps (if !has_prev/!has_next)
     float xrt0, yrt0, xrt1, yrt1;              // coordinates of endcaps (if !has_prev/!has_next)
 
+    float tl0, tl1, tr0, tr1;
+
+    float s0, s1;                              // shorten line by this amount
+
     float len;
 } line_t;
 
-void draw_simple_fan(vector_display_t *self, float cx, float cy, float pa, float a, float t) {
+void draw_fan(vector_display_t *self, float cx, float cy, float pa, float a, float t, float s, float e) {
     float *angles;
     int     nsteps;
     float  pa2a        = normalizef(a - pa);
     float  a2pa        = normalizef(pa - a);
 
-    float s = 0;
-    float e = 0;
-
     int i;
     if (a2pa < pa2a) {
         t = -t;
-        s = TEXTURE_SIZE;
-        e = 0;
         nsteps = max(1, round(a2pa / (M_PI / 8)));
         angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = a + i * a2pa / nsteps;
         //debugf("%fd in %d steps", a2pa, nsteps);
     } else {
-        s = 0;
-        e = TEXTURE_SIZE;
         nsteps = max(1, round(pa2a / (M_PI / 8)));
         angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
@@ -272,9 +272,17 @@ void draw_simple_fan(vector_display_t *self, float cx, float cy, float pa, float
     //debugf("---- %f -> %f nsteps=%d", 360*pa/M_PI/2, 360*a/M_PI/2, 360*pa2a/M_PI/2, 360*a2pa/M_PI/2, nsteps);
 
     for (i = 1; i <= nsteps; i++) {
-        append_texpoint(self, cx + t * sin(angles[i-1]), cy - t * cos(angles[i-1]), s, HALF_TEXTURE_SIZE);
-        append_texpoint(self, cx, cy,                                               e, HALF_TEXTURE_SIZE);
-        append_texpoint(self, cx + t * sin(angles[i]),   cy - t * cos(angles[i]),   s, HALF_TEXTURE_SIZE);
+#if DEBUG_TRIANGLES
+        self->a = 0.5;
+        append_texpoint(self, cx + t * sin(angles[i-1]), cy - t * cos(angles[i-1]), HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx, cy,                                               HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + t * sin(angles[i]),   cy - t * cos(angles[i]),   HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        self->a = 1.0;
+#else
+        append_texpoint(self, cx + t * sin(angles[i-1]), cy - t * cos(angles[i-1]), e, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx, cy,                                               s, HALF_TEXTURE_SIZE);
+        append_texpoint(self, cx + t * sin(angles[i]),   cy - t * cos(angles[i]),   e, HALF_TEXTURE_SIZE);
+#endif
     }
 }
 
@@ -288,47 +296,55 @@ static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
         if (line->has_prev) {   // draw fan for connection to previous
             float  pa2a = normalizef(pline->a -  line->a);
             float  a2pa = normalizef( line->a - pline->a);
-            if (a2pa < pa2a) {
-                draw_simple_fan(self, line->xr0, line->yr0, pline->a, line->a, t*2);
-            } else {
-                draw_simple_fan(self, line->xl0, line->yl0, pline->a, line->a, t*2);
+            if (a2pa < pa2a) {  // inside of fan on right
+                draw_fan(self, line->xr0, line->yr0, pline->a, line->a, line->tl0 + line->tr0, HALF_TEXTURE_SIZE + (line->tr0 / t * HALF_TEXTURE_SIZE), 0);
+            } else {            // inside of fan on left
+                draw_fan(self, line->xl0, line->yl0, pline->a, line->a, line->tl0 + line->tr0, HALF_TEXTURE_SIZE - (line->tl0 / t * HALF_TEXTURE_SIZE), TEXTURE_SIZE);
             }
         }
 
-#if 1
-        append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
-        append_texpoint(self, line->xl0,  line->yl0,  0.0f,         HALF_TEXTURE_SIZE);
-        append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-        append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
-#else
-        self->a = 0.8;
+        float tl0 = HALF_TEXTURE_SIZE - (line->tl0 / t) * HALF_TEXTURE_SIZE;
+        float tl1 = HALF_TEXTURE_SIZE - (line->tl1 / t) * HALF_TEXTURE_SIZE;
+
+        float tr0 = HALF_TEXTURE_SIZE + (line->tr0 / t) * HALF_TEXTURE_SIZE;
+        float tr1 = HALF_TEXTURE_SIZE + (line->tr1 / t) * HALF_TEXTURE_SIZE;
+
+#if DEBUG_TRIANGLES
+        self->a = 0.5;
+        self->r = 1.0; self->g = 0.8; self->b = 0.8;
         append_texpoint(self, line->xr0,  line->yr0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
         append_texpoint(self, line->xr1,  line->yr1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
         append_texpoint(self, line->xl1,  line->yl1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
         append_texpoint(self, line->xl0,  line->yl0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
         append_texpoint(self, line->xr0,  line->yr0,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
         append_texpoint(self, line->xl1,  line->yl1,  HALF_TEXTURE_SIZE, HALF_TEXTURE_SIZE);
+        self->r = 1.0; self->g = 1.0; self->b = 1.0;
         self->a = 1.0;
+#else
+        append_texpoint(self, line->xr0,  line->yr0,  tr0, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr1,  line->yr1,  tr1, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  tl1, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl0,  line->yl0,  tl0, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xr0,  line->yr0,  tr0, HALF_TEXTURE_SIZE);
+        append_texpoint(self, line->xl1,  line->yl1,  tl1, HALF_TEXTURE_SIZE);
 #endif
 
         if (!line->has_prev) { // draw startcap
-            append_texpoint(self, line->xl0,  line->yl0,  0.0f,         HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xlt0, line->ylt0, 0.0f,         0.0f);    
-            append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xr0,  line->yr0,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xlt0, line->ylt0, 0.0f,         0.0f);
-            append_texpoint(self, line->xrt0, line->yrt0, TEXTURE_SIZE, 0.0f);   
+            append_texpoint(self, line->xl0,  line->yl0,  tl0,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt0, line->ylt0, tl0,          0.0f);    
+            append_texpoint(self, line->xr0,  line->yr0,  tr0,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xr0,  line->yr0,  tr0,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt0, line->ylt0, tl0,          0.0f);
+            append_texpoint(self, line->xrt0, line->yrt0, tr0,          0.0f);   
         } 
 
         if (!line->has_next) { // draw endcap
-            append_texpoint(self, line->xlt1, line->ylt1, 0.0f,         0.0f);    
-            append_texpoint(self, line->xl1,  line->yl1,  0.0f,         HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xlt1, line->ylt1, 0.0f,         0.0f);
-            append_texpoint(self, line->xr1,  line->yr1,  TEXTURE_SIZE, HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xrt1, line->yrt1, TEXTURE_SIZE, 0.0f);
+            append_texpoint(self, line->xlt1, line->ylt1, tl1,          0.0f);    
+            append_texpoint(self, line->xl1,  line->yl1,  tl1,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xr1,  line->yr1,  tr1,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xlt1, line->ylt1, tl1,          0.0f);
+            append_texpoint(self, line->xr1,  line->yr1,  tr1,          HALF_TEXTURE_SIZE);
+            append_texpoint(self, line->xrt1, line->yrt1, tr1,          0.0f);
         }
 
     }
@@ -349,6 +365,7 @@ int vector_display_end_draw(vector_display_t *self) {
     int     nlines = self->pending_npoints-1;
     line_t *lines  = (line_t*)alloca((self->pending_npoints-1) * sizeof(line_t));
 
+    // compute basics
     for (i = 1; i < self->pending_npoints; i++) {
         line_t *line = &lines[i-1];
         line->is_first = i == 1;
@@ -362,74 +379,75 @@ int vector_display_end_draw(vector_display_t *self) {
         line->a     = atan2(line->y1 - line->y0, line->x1 - line->x0); // angle from positive x axis, increasing ccw, [-pi, pi]
         line->sin_a = sin(line->a);
         line->cos_a = cos(line->a);
-        line->len  = sqrt(pow(line->x1-line->x0, 2) + pow(line->y1-line->y0, 2));
-
-        // compute initial values for left,right,leftcenter,rightcenter points 
-        line->xl0 = line->x0 + t * line->sin_a; line->yl0 = line->y0 - t * line->cos_a;
-        line->xr0 = line->x0 - t * line->sin_a; line->yr0 = line->y0 + t * line->cos_a;
-        line->xl1 = line->x1 + t * line->sin_a; line->yl1 = line->y1 - t * line->cos_a;
-        line->xr1 = line->x1 - t * line->sin_a; line->yr1 = line->y1 + t * line->cos_a;
-    }
-
-    for (i = 0; i < nlines; i++) {
-        line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines], *nline = &lines[(i+1)%nlines];
+        line->len   = sqrt(pow(line->x1-line->x0, 2) + pow(line->y1-line->y0, 2));
 
         // figure out what connections we have
         line->has_prev = (!line->is_first || (line->is_first && first_last_same));
         line->has_next = (!line->is_last  || (line->is_last  && first_last_same));
 
-        line->prev_ad = normalizef(line->a - pline->a);
-        line->next_ad = normalizef(line->a - nline->a);
-        
+        // initialize thicknesses/shortens to default values
+        line->tl0 = line->tl1 = line->tr0 = line->tr1 = t;
+        line->s0 = line->s1 = 0.0;
+    }
+
+    // compute adjustments for connected line segments
+    for (i = 0; i < nlines; i++) {
+        line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines];
+
         if (line->has_prev) { 
-            float  pa2a = normalizef(pline->a -  line->a);
-            float  a2pa = normalizef( line->a - pline->a);
-            if (a2pa <= (M_PI / 2 + FLT_EPSILON) || pa2a <= (M_PI / 2 + FLT_EPSILON)) {
+            float pa2a       = normalizef(pline->a -  line->a);
+            float a2pa       = normalizef( line->a - pline->a);
+            float maxshorten = min(line->len, pline->len) / 2.0;
+
+            if (min(a2pa, pa2a) <= (M_PI / 2 + FLT_EPSILON)) {
                 if (a2pa < pa2a) {
-                    float u = t * sin(a2pa/2) / cos(a2pa/2);
-                    line->xr0  = line->xr0  + u * line->cos_a; line->yr0  = line->yr0  + u * line->sin_a;
-                    line->xl0  = line->xl0  + u * line->cos_a; line->yl0  = line->yl0  + u * line->sin_a;
+                    float shorten = t * sin(a2pa/2) / cos(a2pa/2);
+                    float a       = (M_PI - a2pa) / 2;
+                    if (shorten > maxshorten) {
+                        line->s0  = pline->s1  = maxshorten;
+                        line->tr0 = pline->tr1 = maxshorten * sin(a) / cos(a);
+                    } else {
+                        line->s0 = pline->s1 = shorten;
+                    }
+                    //debugf("ad =  %f, shorten by %f (len=%f), rthickness %f (from %f)", a, line->s0, line->len, line->tr0, t);
                 } else {
-                    float u = t * sin(pa2a/2) / cos(pa2a/2);
-                    line->xl0  = line->xl0  + u * line->cos_a; line->yl0  = line->yl0  + u * line->sin_a;
-                    line->xr0  = line->xr0  + u * line->cos_a; line->yr0  = line->yr0  + u * line->sin_a;
+                    float shorten = t * sin(pa2a/2) / cos(pa2a/2);
+                    float a       = (M_PI - pa2a) / 2;
+                    if (shorten > maxshorten) {
+                        line->s0  = pline->s1  = maxshorten;
+                        line->tl0 = pline->tl1 = maxshorten * sin(a) / cos(a);
+                    } else {
+                        line->s0 = pline->s1 = shorten;
+                    }
+                    //debugf("ad =  %f, shorten by %f (len=%f), rthickness by %f (from %f)", a, line->s0, line->len, line->tl0, t);
                 }
             } else {
-                line->has_prev = 0;
+                line->has_prev  = 0;
             }
         }
 
-        if (line->has_next) {
-            float  na2a = normalizef(nline->a -  line->a);
-            float  a2na = normalizef( line->a - nline->a);
-            if (a2na <= (M_PI / 2 + FLT_EPSILON) || na2a <= (M_PI / 2 + FLT_EPSILON)) {
-                if (a2na < na2a) {
-                    float u = t * sin(a2na/2) / cos(a2na/2);
-                    line->xl1  = line->xl1  - u * line->cos_a; line->yl1  = line->yl1  - u * line->sin_a;
-                    line->xr1  = line->xr1  - u * line->cos_a; line->yr1  = line->yr1  - u * line->sin_a;
-                } else {
-                    float u = t * sin(na2a/2) / cos(na2a/2);
-                    line->xr1  = line->xr1  - u * line->cos_a; line->yr1  = line->yr1  - u * line->sin_a;
-                    line->xl1  = line->xl1  - u * line->cos_a; line->yl1  = line->yl1  - u * line->sin_a;
-                }
-            } else {
-                line->has_next = 0;
-            }
-        }
+        if (!line->has_prev) pline->has_next = 0;
+    }
 
-        if (!line->has_prev) {
-            line->xlt0 = line->xl0 - t * line->cos_a; 
-            line->ylt0 = line->yl0 - t * line->sin_a;
-            line->xrt0 = line->xr0 - t * line->cos_a; 
-            line->yrt0 = line->yr0 - t * line->sin_a;
-        }
+    // compute line geometry
+    for (i = 0; i < nlines; i++) {
+        line_t *line  = &lines[i];
 
-        if (!line->has_next) {
-            line->xlt1 = line->xl1 + t * line->cos_a; 
-            line->ylt1 = line->yl1 + t * line->sin_a;
-            line->xrt1 = line->xr1 + t * line->cos_a;
-            line->yrt1 = line->yr1 + t * line->sin_a;
-        }
+        // shorten lines if needed
+        line->x0 = line->x0 + line->s0 * line->cos_a; line->y0 = line->y0 + line->s0 * line->sin_a;
+        line->x1 = line->x1 - line->s1 * line->cos_a; line->y1 = line->y1 - line->s1 * line->sin_a;
+
+        // compute initial values for left,right,leftcenter,rightcenter points 
+        line->xl0 = line->x0 + line->tl0 * line->sin_a; line->yl0 = line->y0 - line->tl0 * line->cos_a;
+        line->xr0 = line->x0 - line->tr0 * line->sin_a; line->yr0 = line->y0 + line->tr0 * line->cos_a;
+        line->xl1 = line->x1 + line->tl1 * line->sin_a; line->yl1 = line->y1 - line->tl1 * line->cos_a;
+        line->xr1 = line->x1 - line->tr1 * line->sin_a; line->yr1 = line->y1 + line->tr1 * line->cos_a;
+
+        // compute tips
+        line->xlt0 = line->xl0 - t * line->cos_a; line->ylt0 = line->yl0 - t * line->sin_a;
+        line->xrt0 = line->xr0 - t * line->cos_a; line->yrt0 = line->yr0 - t * line->sin_a;
+        line->xlt1 = line->xl1 + t * line->cos_a; line->ylt1 = line->yl1 + t * line->sin_a;
+        line->xrt1 = line->xr1 + t * line->cos_a; line->yrt1 = line->yr1 + t * line->sin_a;
     }
 
     // draw the lines
@@ -696,29 +714,30 @@ int vector_display_setup(vector_display_t *self) {
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    // create vertex buffers for fade
     glGenBuffers(self->steps, self->buffers);
 
-    // set up vertex buffer for painting the screen
-    glGenBuffers(1, &self->screen_vertexbuffer);
-    nocolor_point_t screen_points[] = {
-    //    x            y             z           u, v
+    // set up vertex buffer for painting from glow-sized texture to screen-sized texture
+    glGenBuffers(1, &self->glow2screen_vertexbuffer);
+    nocolor_point_t glow2screen_points[] = {
+    //    x                 y                  z           u, v
     //   ------------------------------------------------------------
-        { 0,           0,            10000,      0, 1 },        // upper left triangle
-        { self->width+1, self->height+1, 10000,      1, 0 },
-        { self->width+1, 0,            10000,      1, 1 },
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->width,      self->height,      10000,      1, 0 },
+        { self->width,      0,                 10000,      1, 1 },
 
-        { 0,           0,            10000,      0, 1 },        // lower right triangle
-        { 0,           self->height+1, 10000,      0, 0 },
-        { self->width+1, self->height+1, 10000,      1, 0 },
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->height,      10000,      0, 0 },
+        { self->width, self->height,           10000,      1, 0 },
     };
 
     // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->screen_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(screen_points), screen_points, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow2screen_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2screen_points), glow2screen_points, GL_STATIC_DRAW);
 
-    // set up vertex buffer for painting the screen
-    glGenBuffers(1, &self->glow_vertexbuffer);
-    nocolor_point_t glow_points[] = {
+    // set up vertex buffer for painting from screen-sized texture to glow-sized texture
+    glGenBuffers(1, &self->screen2glow_vertexbuffer);
+    nocolor_point_t screen2glow_points[] = {
     //    x                 y                  z           u, v
     //   ------------------------------------------------------------
         { 0,                0,                 10000,      0, 1 },        // upper left triangle
@@ -729,10 +748,44 @@ int vector_display_setup(vector_display_t *self) {
         { 0,                self->glow_height, 10000,      0, 0 },
         { self->glow_width, self->glow_height, 10000,      1, 0 },
     };
-
     // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glow_points), glow_points, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2glow_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2glow_points), screen2glow_points, GL_STATIC_DRAW);
+
+    // set up vertex buffer for painting from screen-sized texture to screen-sized texture
+    glGenBuffers(1, &self->screen2screen_vertexbuffer);
+    nocolor_point_t screen2screen_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->width,      self->height,      10000,      1, 0 },
+        { self->width,      0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->height,      10000,      0, 0 },
+        { self->width,      self->height,      10000,      1, 0 },
+    };
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2screen_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2screen_points), screen2screen_points, GL_STATIC_DRAW);
+
+
+    // set up vertex buffer for painting from glow-sized texture to glow-sized texture
+    glGenBuffers(1, &self->glow2glow_vertexbuffer);
+    nocolor_point_t glow2glow_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+        { self->glow_width, 0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->glow_height, 10000,      0, 0 },
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+    };
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow2glow_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2glow_points), glow2glow_points, GL_STATIC_DRAW);
 
     return 0;
 }
@@ -839,7 +892,7 @@ int vector_display_update(vector_display_t *self) {
     glUniformMatrix4fv(self->blur_uniform_projection, 1, GL_FALSE, glow_projmat);
     glUniformMatrix4fv(self->blur_uniform_modelview, 1, GL_FALSE, mvmat);
 
-    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2glow_vertexbuffer);
     glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
     glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(VERTEX_POS_INDEX);
@@ -851,13 +904,21 @@ int vector_display_update(vector_display_t *self) {
 
     glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
 
-    for (int j = 0; j < 3; j++) {
+    for (int pass = 0; pass < 4; pass++) {
         // render the glow1 texture to the glow0 buffer with horizontal blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);
         glClear(GL_COLOR_BUFFER_BIT);
         glUniform2f(self->blur_uniform_scale, 1.0/self->glow_width, 0.0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindTexture(GL_TEXTURE_2D, self->fb_glow0_texid);
+
+        glBindBuffer(GL_ARRAY_BUFFER, self->glow2glow_vertexbuffer);
+        glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
+        glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(VERTEX_POS_INDEX);
+        glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
+        glUniform1f(self->blur_uniform_alpha, 1.0); 
+        glUniform1f(self->blur_uniform_mult, 1.05); 
         
         // render the glow0 texture to the glow1 buffer with vertical blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);
@@ -866,16 +927,6 @@ int vector_display_update(vector_display_t *self) {
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
     }
-
-    // set up the vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->glow_vertexbuffer);
-    glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
-    glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(VERTEX_POS_INDEX);
-    glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
-
-    // draw
-    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     //
     // render scene + glow1 to the screen
@@ -892,22 +943,29 @@ int vector_display_update(vector_display_t *self) {
     glUniformMatrix4fv(self->screen_uniform_projection, 1, GL_FALSE, projmat);
     glUniformMatrix4fv(self->screen_uniform_modelview, 1, GL_FALSE, mvmat);
 
+    // set up blending for the final compositing
+    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ONE);
+
     // set up the vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->screen_vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2screen_vertexbuffer);
     glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
     glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(VERTEX_POS_INDEX);
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
-
-    // set up blending for the final compositing
-    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ONE);
 
     // paint the scene
     glUniform1f(self->screen_uniform_alpha, 1.0); 
     glUniform1f(self->screen_uniform_mult, 1.0); 
     glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // set up the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow2screen_vertexbuffer);
+    glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(nocolor_point_t), 0);
+    glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(VERTEX_POS_INDEX);
+    glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
 
     // blend in the glow
     glUniform1f(self->screen_uniform_mult, 1.5); 
