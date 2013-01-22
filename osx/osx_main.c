@@ -144,6 +144,18 @@ void myDisplay() {
     draw_wheel(display, 3 * M_PI / 4, 1700,  950, 100);
     draw_wheel(display, M_PI / 2,     1900,  950, 50);
     draw_wheel(display, M_PI / 4,     2000,  950, 20);
+
+    //
+    // finish
+    //
+    int rc;
+    rc = vector_display_update(display);
+    if (rc != 0) {
+        printf("Failed to update vector display: rc=%d", rc);
+        exit(1);
+    }
+
+    glFlush(); //Write this out to the screen
 }
 
 int main (int argc, char **argv) {
