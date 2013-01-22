@@ -111,6 +111,12 @@ struct vector_display {
 #define VERTEX_COLOR_INDEX     (1)
 #define VERTEX_TEXCOORD_INDEX  (2)
 
+#ifdef GL_ES_VERSION_2_0
+#else
+#    define GL_HALF_FLOAT_OES  GL_HALF_FLOAT
+#endif
+
+
 int vector_display_new(vector_display_t **out_self, double width, double height) {
     vector_display_t *self = (vector_display_t*)calloc(sizeof(vector_display_t), 1);
     if (self == NULL) return -1;
