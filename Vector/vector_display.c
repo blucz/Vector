@@ -529,6 +529,9 @@ void gen_linetex(vector_display_t *self) {
 }
 
 int vector_display_setup(vector_display_t *self) {
+    GLuint origdrawbuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&origdrawbuffer);
+
     const char *nocolor_vertex_shader_text =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
@@ -793,6 +796,9 @@ int vector_display_setup(vector_display_t *self) {
     // load up vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, self->glow2glow_vertexbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glow2glow_points), glow2glow_points, GL_STATIC_DRAW);
+
+    // put back old framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, origdrawbuffer);
 
     return 0;
 }
