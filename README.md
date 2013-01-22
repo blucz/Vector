@@ -10,17 +10,11 @@ simulator and I haven't tested anything slower than an iPad 4.
 In its current state, it's a sample program that demoes the most basic of vector 
 display functionality.
 
-The following files:
+The files are organized as follows:
 
-    vector_display.c
-    vector_display.h
-    vector_display_platform.h
-    vector_display_platform_ios.c
-    vector_font_simplex.h
-    vector_font_simplex.c
-
-implement a reusable and platform independent vector display. The remaining 
-files make up the iOS demo app.
+- *Vector/* implements a reusable and platform independent vector display.
+- *ios/* make up the iOS demo app.
+- *osx/* make up the Mac OSX demo app.
 
 The font in the screenshots is the "simplex" font. More info on that: http://paulbourke.net/dataformats/hershey/
 
