@@ -16,8 +16,8 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
-#include <OpenGLES/ES2/gl.h>
-#include <OpenGLES/ES2/glext.h>
+
+#include "glinc.h"
 
 #define MAX_STEPS 60
 #define DEFAULT_STEPS 5
@@ -904,7 +904,8 @@ int vector_display_update(vector_display_t *self) {
 
     glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
 
-    for (int pass = 0; pass < 4; pass++) {
+    int pass;
+    for (pass = 0; pass < 4; pass++) {
         // render the glow1 texture to the glow0 buffer with horizontal blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);
         glClear(GL_COLOR_BUFFER_BIT);

@@ -9,8 +9,7 @@
 #ifndef Vector_vector_display_utils_h
 #define Vector_vector_display_utils_h
 
-#include <OpenGLES/ES2/gl.h>
-#include <OpenGLES/ES2/glext.h>
+#include "glinc.h"
 
 GLuint vector_display_load_shader(GLenum type, const char *shaderSrc);
 void vector_display_check_error(const char *desc);

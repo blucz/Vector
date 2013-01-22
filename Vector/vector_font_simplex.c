@@ -591,7 +591,8 @@ int vector_font_simplex_draw(vector_display_t *display, double x, double y, doub
         int spacing   = chr[1];
 
         int is_drawing = 0;
-        for (int i = 0; i < nvertices; i++) {
+        int i;
+        for (i = 0; i < nvertices; i++) {
             int vx = chr[2 + i * 2];
             int vy = chr[2 + i * 2 + 1];
             if (vx == -1 && vy == -1) {
