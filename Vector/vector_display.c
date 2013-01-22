@@ -55,7 +55,7 @@ struct vector_display {
     GLuint screen_uniform_modelview;
     GLuint screen_uniform_projection;
     GLuint screen_uniform_alpha;
-    GLuint screen_uniform_mult;         
+    GLuint screen_uniform_mult;
 
     GLuint fb_scene;                  // framebuffer object
     GLuint fb_scene_texid;
@@ -65,7 +65,7 @@ struct vector_display {
     GLuint blur_uniform_projection;
     GLuint blur_uniform_scale;
     GLuint blur_uniform_alpha;
-    GLuint blur_uniform_mult;         
+    GLuint blur_uniform_mult;
 
     GLuint fb_glow0;            // framebuffer for glow0
     GLuint fb_glow0_texid;      // texture for blur
@@ -128,8 +128,8 @@ int vector_display_new(vector_display_t **out_self, double width, double height)
     self->r = self->g = self->b = self->a = 1.0f;
     self->width = width;
     self->height = height;
-    self->glow_width = width   / 3.0; 
-    self->glow_height = height / 3.0; 
+    self->glow_width = width   / 3.0;
+    self->glow_height = height / 3.0;
     self->initial_decay = DEFAULT_INITIAL_DECAY;
     self->thickness = DEFAULT_THICKNESS;
     *out_self = self;
@@ -331,15 +331,15 @@ static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
 
         if (!line->has_prev) { // draw startcap
             append_texpoint(self, line->xl0,  line->yl0,  tl0,          HALF_TEXTURE_SIZE);
-            append_texpoint(self, line->xlt0, line->ylt0, tl0,          0.0f);    
+            append_texpoint(self, line->xlt0, line->ylt0, tl0,          0.0f);
             append_texpoint(self, line->xr0,  line->yr0,  tr0,          HALF_TEXTURE_SIZE);
             append_texpoint(self, line->xr0,  line->yr0,  tr0,          HALF_TEXTURE_SIZE);
             append_texpoint(self, line->xlt0, line->ylt0, tl0,          0.0f);
-            append_texpoint(self, line->xrt0, line->yrt0, tr0,          0.0f);   
-        } 
+            append_texpoint(self, line->xrt0, line->yrt0, tr0,          0.0f);
+        }
 
         if (!line->has_next) { // draw endcap
-            append_texpoint(self, line->xlt1, line->ylt1, tl1,          0.0f);    
+            append_texpoint(self, line->xlt1, line->ylt1, tl1,          0.0f);
             append_texpoint(self, line->xl1,  line->yl1,  tl1,          HALF_TEXTURE_SIZE);
             append_texpoint(self, line->xr1,  line->yr1,  tr1,          HALF_TEXTURE_SIZE);
             append_texpoint(self, line->xlt1, line->ylt1, tl1,          0.0f);
@@ -351,7 +351,7 @@ static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
 }
 
 int vector_display_end_draw(vector_display_t *self) {
-    if (self->pending_npoints < 2) { 
+    if (self->pending_npoints < 2) {
         self->pending_npoints = 0;
         return 0;
     }
@@ -372,10 +372,10 @@ int vector_display_end_draw(vector_display_t *self) {
         line->is_last  = i == self->pending_npoints - 1;
 
         // precomputed info for current line
-        line->x0    = self->pending_points[i-1].x;    
-        line->y0    = self->pending_points[i-1].y;     
-        line->x1    = self->pending_points[i].x;        
-        line->y1    = self->pending_points[i].y;         
+        line->x0    = self->pending_points[i-1].x;
+        line->y0    = self->pending_points[i-1].y;
+        line->x1    = self->pending_points[i].x;
+        line->y1    = self->pending_points[i].y;
         line->a     = atan2(line->y1 - line->y0, line->x1 - line->x0); // angle from positive x axis, increasing ccw, [-pi, pi]
         line->sin_a = sin(line->a);
         line->cos_a = cos(line->a);
@@ -394,7 +394,7 @@ int vector_display_end_draw(vector_display_t *self) {
     for (i = 0; i < nlines; i++) {
         line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines];
 
-        if (line->has_prev) { 
+        if (line->has_prev) {
             float pa2a       = normalizef(pline->a -  line->a);
             float a2pa       = normalizef( line->a - pline->a);
             float maxshorten = min(line->len, pline->len) / 2.0;
@@ -437,7 +437,7 @@ int vector_display_end_draw(vector_display_t *self) {
         line->x0 = line->x0 + line->s0 * line->cos_a; line->y0 = line->y0 + line->s0 * line->sin_a;
         line->x1 = line->x1 - line->s1 * line->cos_a; line->y1 = line->y1 - line->s1 * line->sin_a;
 
-        // compute initial values for left,right,leftcenter,rightcenter points 
+        // compute initial values for left,right,leftcenter,rightcenter points
         line->xl0 = line->x0 + line->tl0 * line->sin_a; line->yl0 = line->y0 - line->tl0 * line->cos_a;
         line->xr0 = line->x0 - line->tr0 * line->sin_a; line->yr0 = line->y0 + line->tr0 * line->cos_a;
         line->xl1 = line->x1 + line->tl1 * line->sin_a; line->yl1 = line->y1 - line->tl1 * line->cos_a;
@@ -500,15 +500,15 @@ void gen_linetex(vector_display_t *self) {
             if (distance > 1.0) distance = 1.0;
 
             double line = pow(16, -2 * distance);
-            double glow = pow(2,  -4 * distance) / 10.0;          
+            double glow = pow(2,  -4 * distance) / 10.0;
             glow = 0;
             double val  = max(0, min(1, line + glow));                  // clamp
 
             //if (distance < 0.1) val = 1.0;
 
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = float_to_hfloat(1.0); 
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = float_to_hfloat(1.0); 
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = float_to_hfloat(1.0); 
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = float_to_hfloat(1.0);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = float_to_hfloat(1.0);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = float_to_hfloat(1.0);
             texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = float_to_hfloat(val);
         }
     }
@@ -527,7 +527,7 @@ void gen_linetex(vector_display_t *self) {
     vector_display_check_error("glTexImage2D");
 }
 
-int vector_display_setup(vector_display_t *self) {    
+int vector_display_setup(vector_display_t *self) {
     const char *nocolor_vertex_shader_text =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
@@ -543,7 +543,9 @@ int vector_display_setup(vector_display_t *self) {
     "    }\n";
 
     const char *blit_fragment_shader_text =
+    "#ifdef GL_ES                               \n"
     "    precision mediump float;               \n"
+    "#endif                                     \n"
     "    uniform sampler2D tex1;                \n"
     "    varying vec2 TexCoord;                 \n"
     "    uniform float alpha;                   \n"
@@ -552,7 +554,7 @@ int vector_display_setup(vector_display_t *self) {
     "    void main() {                          \n"
     "        gl_FragColor = texture2D(tex1, TexCoord.st) * vec4(mult, mult, mult, alpha*mult);\n"
     "    }                                      \n";
-    
+
     const char *fb_vertex_shader_text =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
@@ -571,7 +573,9 @@ int vector_display_setup(vector_display_t *self) {
     "    }\n";
 
     const char *fb_fragment_shader_text =
+    "#ifdef GL_ES                               \n"
     "    precision mediump float;               \n"
+    "#endif                                     \n"
     "                                           \n"
     "    uniform sampler2D tex1;                \n"
     "    uniform float alpha;                   \n"
@@ -585,7 +589,9 @@ int vector_display_setup(vector_display_t *self) {
     "    }                                      \n";
 
     const char *blur_fragment_shader_text =
+    "#ifdef GL_ES                               \n"
     "    precision mediump float;               \n"
+    "#endif                                     \n"
     "    uniform sampler2D tex1;                \n"
     "    uniform vec2      scale;               \n"
     "    varying vec2      TexCoord;            \n"
@@ -611,7 +617,7 @@ int vector_display_setup(vector_display_t *self) {
     GLuint fragment_shader;
 
     self->did_setup = 1;
-    
+
     // Set up the program for the framebuffer
     vertex_shader   = vector_display_load_shader(GL_VERTEX_SHADER,   fb_vertex_shader_text);
     if (vertex_shader   == 0) return -1;
@@ -666,8 +672,8 @@ int vector_display_setup(vector_display_t *self) {
     if (rc < 0) return rc;
     self->blur_uniform_modelview  = glGetUniformLocation(self->blur_program, "inModelViewMatrix");
     self->blur_uniform_projection = glGetUniformLocation(self->blur_program, "inProjectionMatrix");
-    self->blur_uniform_scale      = glGetUniformLocation(self->blur_program, "scale");                         
-    self->blur_uniform_alpha      = glGetUniformLocation(self->blur_program, "alpha");                         
+    self->blur_uniform_scale      = glGetUniformLocation(self->blur_program, "scale");
+    self->blur_uniform_alpha      = glGetUniformLocation(self->blur_program, "alpha");
     self->blur_uniform_mult       = glGetUniformLocation(self->blur_program, "mult");
 
     // generate the line texture
@@ -806,18 +812,18 @@ int vector_display_update(vector_display_t *self) {
     };
 
     GLfloat mvmat[] = {
-        1.0f,0,0,0,  
-        0,1.0f,0,0,  
-        0,0,1.0f,0,  
-        0,0,-70000.0f,1.0f 
+        1.0f,0,0,0,
+        0,1.0f,0,0,
+        0,0,1.0f,0,
+        0,0,-70000.0f,1.0f
     };
 
     // save the framebuffer for the final draw
     GLuint drawbuffer;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&drawbuffer); 
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&drawbuffer);
 
     // bind the framebuffer used for rendering the scene
-    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);                                                                
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);
     glViewport(0, 0, self->width, self->height);
 
     // set up opengl options
@@ -868,7 +874,7 @@ int vector_display_update(vector_display_t *self) {
                 alpha = pow(self->decay, stepi-1) * self->initial_decay;
             }
 
-            glUniform1f(self->fb_uniform_alpha, alpha); 
+            glUniform1f(self->fb_uniform_alpha, alpha);
             glBindBuffer(GL_ARRAY_BUFFER, self->buffers[i]);
             glVertexAttribPointer(VERTEX_POS_INDEX,   3, GL_FLOAT, GL_TRUE,  sizeof(point_t), 0);
             glVertexAttribPointer(VERTEX_COLOR_INDEX, 4, GL_FLOAT, GL_FALSE, sizeof(point_t), (void*)(3 * sizeof(float)));
@@ -880,7 +886,7 @@ int vector_display_update(vector_display_t *self) {
         }
     }
 
-    // 
+    //
     // setup for glow post-processing
     //
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -897,8 +903,8 @@ int vector_display_update(vector_display_t *self) {
     glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(VERTEX_POS_INDEX);
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
-    glUniform1f(self->blur_uniform_alpha, 1.0); 
-    glUniform1f(self->blur_uniform_mult, 1.05); 
+    glUniform1f(self->blur_uniform_alpha, 1.0);
+    glUniform1f(self->blur_uniform_mult, 1.05);
 
     glViewport(0, 0, self->glow_width, self->glow_height);
 
@@ -918,9 +924,9 @@ int vector_display_update(vector_display_t *self) {
         glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
         glEnableVertexAttribArray(VERTEX_POS_INDEX);
         glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
-        glUniform1f(self->blur_uniform_alpha, 1.0); 
-        glUniform1f(self->blur_uniform_mult, 1.05); 
-        
+        glUniform1f(self->blur_uniform_alpha, 1.0);
+        glUniform1f(self->blur_uniform_mult, 1.05);
+
         // render the glow0 texture to the glow1 buffer with vertical blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -956,8 +962,8 @@ int vector_display_update(vector_display_t *self) {
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
 
     // paint the scene
-    glUniform1f(self->screen_uniform_alpha, 1.0); 
-    glUniform1f(self->screen_uniform_mult, 1.0); 
+    glUniform1f(self->screen_uniform_alpha, 1.0);
+    glUniform1f(self->screen_uniform_mult, 1.0);
     glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -969,7 +975,7 @@ int vector_display_update(vector_display_t *self) {
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
 
     // blend in the glow
-    glUniform1f(self->screen_uniform_mult, 1.5); 
+    glUniform1f(self->screen_uniform_mult, 1.5);
     glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
