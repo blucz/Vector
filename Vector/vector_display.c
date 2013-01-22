@@ -111,11 +111,6 @@ struct vector_display {
 #define VERTEX_COLOR_INDEX     (1)
 #define VERTEX_TEXCOORD_INDEX  (2)
 
-#ifdef GL_ES_VERSION_2_0
-#else
-#    define GL_HALF_FLOAT_OES  GL_HALF_FLOAT
-#endif
-
 
 int vector_display_new(vector_display_t **out_self, double width, double height) {
     vector_display_t *self = (vector_display_t*)calloc(sizeof(vector_display_t), 1);
@@ -496,7 +491,7 @@ int vector_display_set_decay(vector_display_t *self, double decay) {
 
 void gen_linetex(vector_display_t *self) {
     // generate the texture
-    hfloat texbuf[TEXTURE_SIZE * TEXTURE_SIZE * 4];
+    unsigned char texbuf[TEXTURE_SIZE * TEXTURE_SIZE * 4];
     memset(texbuf, 0xff, sizeof(texbuf));
     int x,y;
     for (x = 0; x < TEXTURE_SIZE; x++) {
@@ -512,10 +507,10 @@ void gen_linetex(vector_display_t *self) {
 
             //if (distance < 0.1) val = 1.0;
 
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = float_to_hfloat(1.0);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = float_to_hfloat(1.0);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = float_to_hfloat(1.0);
-            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = float_to_hfloat(val);
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 0] = 0xff;
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 1] = 0xff;
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 2] = 0xff;
+            texbuf[(x + y * TEXTURE_SIZE) * 4 + 3] = (unsigned char)(val*0xff);
         }
     }
 
@@ -529,7 +524,7 @@ void gen_linetex(vector_display_t *self) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_HALF_FLOAT_OES, texbuf);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_SIZE, TEXTURE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, texbuf);
     vector_display_check_error("glTexImage2D");
 }
 
