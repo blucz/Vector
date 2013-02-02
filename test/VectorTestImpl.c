@@ -6,7 +6,13 @@
 #include "vector_display.h"
 #include "vector_font_simplex.h"
 
-vector_display_t *display;
+static vector_display_t *display;
+static int dwidth;
+static int dheight;
+
+static double scale = 1.0;
+static int offsetx;
+static int offsety;
 
 static void draw_wheel(vector_display_t *display, double angle, double x, double y, double radius) {
     double spokeradius = radius - 2.0f;
@@ -72,6 +78,16 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
     vector_display_end_draw(display);
 }
 
+static int fixx(int x) {
+    return (int)((double)x * scale) + offsetx;
+}
+static int fixy(int y) {
+    return (int)((double)y * scale) + offsety;
+}
+static double fix(double v) {
+    return v * scale;
+}
+
 void
 VectorTestImpl_Draw()
 {
@@ -79,15 +95,19 @@ VectorTestImpl_Draw()
 
     vector_display_clear(display);
 
+    char buf[1024];
+    sprintf(buf, "1234567890    size: %dx%d ", dwidth, dheight);
+
     //
     // test pattern for simplex font
     //
     //vector_font_simplex_draw(display, 100, 1300, 5.0, "Hello, World!");
     vector_display_set_color(display, 0.7f, 0.7f, 1.0f);
-    vector_font_simplex_draw(display, 50, 180, 3.5, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    vector_font_simplex_draw(display, 50, 360, 3.5, "abcdefghijklmnopqrstuvwxyz");
-    vector_font_simplex_draw(display, 50, 540, 3.5, "1234567890");
-    vector_font_simplex_draw(display, 50, 720, 3.5, "!@#$%^&*()-=<>/?;:'\"{}[]|\\+=-_");
+    vector_font_simplex_draw(display, fixx(50), fixy(180), fix(3.5), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    vector_font_simplex_draw(display, fixx(50), fixy(360), fix(3.5), "abcdefghijklmnopqrstuvwxyz");
+    vector_font_simplex_draw(display, fixx(50), fixy(540), fix(3.5), buf);
+    vector_font_simplex_draw(display, fixx(50), fixy(720), fix(3.5), "!@#$%^&*()-=<>/?;:'\"{}[]|\\+=-_");
+
 
     //
     // test pattern for lines
@@ -95,15 +115,15 @@ VectorTestImpl_Draw()
     vector_display_set_color(display, 1.0f, 0.7f, 0.7f);
     for (i = 0; i < 4; i++) {
         for (j = 0; j < i; j++) {
-            vector_display_draw(display, 50, 750 + 100 * i, 400, 750 + 100 * i);     // draw line
-            vector_display_draw(display, 500, 750 + 100 * i, 500, 750 + 100 * i);     // draw dot
+            vector_display_draw(display, fixx(50),  fixy(750 + 100 * i), fixx(400), fixy(750 + 100 * i));     // draw line
+            vector_display_draw(display, fixx(500), fixy(750 + 100 * i), fixx(500), fixy(750 + 100 * i));     // draw dot
         }
     }
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j <= i; j++) {
-            vector_display_draw(display, 50 + 100 * i, 1200, 50 + 100 * i, 1400);     // draw line
-            vector_display_draw(display, 50 + 100 * i, 1450, 50 + 100 * i, 1450);     // draw dot
+            vector_display_draw(display, fixx(50 + 100 * i), fixy(1200), fixx(50 + 100 * i), fixy(1400));     // draw line
+            vector_display_draw(display, fixx(50 + 100 * i), fixy(1450), fixx(50 + 100 * i), fixy(1450));     // draw dot
         }
     }
 
@@ -111,22 +131,22 @@ VectorTestImpl_Draw()
     // test pattern for shapes
     //
     vector_display_set_color(display, 0.7f, 0.7f, 1.0f);
-    draw_circle(display, 500, 950, 20, 32);
-    draw_circle(display, 600, 950, 50, 32);
-    draw_circle(display, 800, 950, 100, 32);
-    draw_circle(display, 1075, 950, 150, 64);
+    draw_circle(display, fixx(500),  fixy(950), fix(20),  32);
+    draw_circle(display, fixx(600),  fixy(950), fix(50),  32);
+    draw_circle(display, fixx(800),  fixy(950), fix(100), 32);
+    draw_circle(display, fixx(1075), fixy(950), fix(150), 64);
 
     vector_display_set_color(display, 0.7f, 1.0f, 0.7f);
-    draw_box(display, 500, 1200, 40, 40);
-    draw_box(display, 565, 1200, 100, 100);
-    draw_box(display, 700, 1200, 200, 200);
-    draw_box(display, 950, 1200, 300, 300);
+    draw_box(display, fixx(500), fixy(1200), fix(40),  fix(40));
+    draw_box(display, fixx(565), fixy(1200), fix(100), fix(100));
+    draw_box(display, fixx(700), fixy(1200), fix(200), fix(200));
+    draw_box(display, fixx(950), fixy(1200), fix(300), fix(300));
 
     vector_display_set_color(display, 1.0f, 0.7f, 1.0f);
-    draw_wheel(display, M_PI,         1425, 950, 150);
-    draw_wheel(display, 3 * M_PI / 4, 1700,  950, 100);
-    draw_wheel(display, M_PI / 2,     1900,  950, 50);
-    draw_wheel(display, M_PI / 4,     2000,  950, 20);
+    draw_wheel(display, M_PI,         fixx(1425), fixy(950), fix(150));
+    draw_wheel(display, 3 * M_PI / 4, fixx(1700), fixy(950), fix(100));
+    draw_wheel(display, M_PI / 2,     fixx(1900), fixy(950), fix(50));
+    draw_wheel(display, M_PI / 4,     fixx(2000), fixy(950), fix(20));
 
     //
     // finish
@@ -139,6 +159,22 @@ VectorTestImpl_Draw()
     }
 
     glFlush(); //Write this out to the screen
+}
+
+static void resize(int w, int h)
+{
+    dwidth = w;
+    dheight = h;
+
+    if (((double)dwidth / (double)dheight) < (2048.0/1536.0)) {
+        scale = (double)dwidth / 2048.0;
+        offsetx = 0;
+        offsety = (dheight - (int)((double)1536 * scale)) / 2;
+    } else {
+        scale = (double)dheight / 1536.0;
+        offsetx = (dwidth - (int)((double)2048 * scale)) / 2;
+        offsety = 0;
+    }
 }
 
 void
@@ -156,12 +192,15 @@ VectorTestImpl_Init(int w, int h)
         printf("Failed to setup vector display: rc=%d", rc);
         exit(1);
     }
+
+    resize(w, h);
 }
 
 void
 VectorTestImpl_Resize(int w, int h)
 {
     vector_display_resize(display, w, h);
+    resize(w,h);
 }
 
 void
