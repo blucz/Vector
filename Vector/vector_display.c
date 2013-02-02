@@ -141,14 +141,141 @@ int vector_display_new(vector_display_t **out_self, double width, double height)
     return 0;
 }
 
+int vector_display_setup_res_dependent(vector_display_t *self) {
+    if (!self->did_setup) return 0;
+
+    GLuint origdrawbuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&origdrawbuffer);
+
+    // set up the framebuffer for the scene
+    glGenFramebuffers(1, &self->fb_scene);                                                                      vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_scene_texid);                                                                    vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);                                                          vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);                                                         vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->width, self->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);     vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_scene_texid, 0);       vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
+
+    // set up the glow0 framebuffer
+    glGenFramebuffers(1, &self->fb_glow0);                                                                            vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_glow0_texid);                                                                          vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);                                                                vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_glow0_texid);                                                               vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow0_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
+
+    // set up the glow1 framebuffer
+    glGenFramebuffers(1, &self->fb_glow1);                                                                            vector_display_check_error("glGenFramebuffers");
+    glGenTextures(1, &self->fb_glow1_texid);                                                                          vector_display_check_error("glGenTextures");
+    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);                                                                vector_display_check_error("glBindFramebuffer");
+    glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);                                                               vector_display_check_error("glBindTexture");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow1_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
+
+    // set up vertex buffer for painting from glow-sized texture to screen-sized texture
+    nocolor_point_t glow2screen_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->width,      self->height,      10000,      1, 0 },
+        { self->width,      0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->height,      10000,      0, 0 },
+        { self->width, self->height,           10000,      1, 0 },
+    };
+
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow2screen_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2screen_points), glow2screen_points, GL_STATIC_DRAW);
+
+    // set up vertex buffer for painting from screen-sized texture to glow-sized texture
+    nocolor_point_t screen2glow_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+        { self->glow_width, 0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->glow_height, 10000,      0, 0 },
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+    };
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2glow_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2glow_points), screen2glow_points, GL_STATIC_DRAW);
+
+    // set up vertex buffer for painting from screen-sized texture to screen-sized texture
+    nocolor_point_t screen2screen_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->width,      self->height,      10000,      1, 0 },
+        { self->width,      0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->height,      10000,      0, 0 },
+        { self->width,      self->height,      10000,      1, 0 },
+    };
+    // load up vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, self->screen2screen_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2screen_points), screen2screen_points, GL_STATIC_DRAW);
+
+    // set up vertex buffer for painting from glow-sized texture to glow-sized texture
+
+    // load up vertex buffer
+    nocolor_point_t glow2glow_points[] = {
+    //    x                 y                  z           u, v
+    //   ------------------------------------------------------------
+        { 0,                0,                 10000,      0, 1 },        // upper left triangle
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+        { self->glow_width, 0,                 10000,      1, 1 },
+
+        { 0,                0,                 10000,      0, 1 },        // lower right triangle
+        { 0,                self->glow_height, 10000,      0, 0 },
+        { self->glow_width, self->glow_height, 10000,      1, 0 },
+    };
+    glBindBuffer(GL_ARRAY_BUFFER, self->glow2glow_vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2glow_points), glow2glow_points, GL_STATIC_DRAW);
+
+    // put back old framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, origdrawbuffer);
+}
+
+int vector_display_teardown_res_dependent(vector_display_t *self) {
+    if (!self->did_setup) return 0;
+
+    glDeleteFramebuffers(1, &self->fb_scene);
+    glDeleteTextures(1, &self->fb_scene_texid);
+
+    glDeleteFramebuffers(1, &self->fb_glow0);
+    glDeleteTextures(1, &self->fb_glow0_texid);
+
+    glDeleteFramebuffers(1, &self->fb_glow1);
+    glDeleteTextures(1, &self->fb_glow1_texid);
+}
+
 int vector_display_resize(vector_display_t *self, double width, double height) {
-    int rc;
-    rc = vector_display_teardown(self);
-    if (rc != 0) return rc;
-    rc = vector_display_init(self, width, height);
-    if (rc != 0) return rc;
-    rc = vector_display_setup(self);
-    if (rc != 0) return rc;
+    vector_display_teardown_res_dependent(self);
+    self->width = width;
+    self->height = height;
+    self->glow_width = width   / 3.0;
+    self->glow_height = height / 3.0;
+    vector_display_setup_res_dependent(self);
     return 0;
 }
 
@@ -494,9 +621,8 @@ int vector_display_set_steps(vector_display_t *self, int steps) {
     self->steps = steps;
     self->buffers = (GLuint*)calloc(sizeof(GLuint), self->steps);
     self->buffernpoints = (GLuint*)calloc(sizeof(GLuint), self->steps);
-    if (self->did_setup) {
-        glGenBuffers(self->steps, self->buffers);
-    }
+    if (self->did_setup) glGenBuffers(self->steps, self->buffers);
+
     return 0;
 }
 
@@ -546,9 +672,6 @@ void gen_linetex(vector_display_t *self) {
 }
 
 int vector_display_setup(vector_display_t *self) {
-    GLuint origdrawbuffer;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&origdrawbuffer);
-
     const char *nocolor_vertex_shader_text =
     "    uniform mat4 inProjectionMatrix;       \n"
     "    uniform mat4 inModelViewMatrix;        \n"
@@ -700,127 +823,26 @@ int vector_display_setup(vector_display_t *self) {
     // generate the line texture
     gen_linetex(self);
 
-    // set up the framebuffer for the scene
-    glGenFramebuffers(1, &self->fb_scene);                                                                      vector_display_check_error("glGenFramebuffers");
-    glGenTextures(1, &self->fb_scene_texid);                                                                    vector_display_check_error("glGenTextures");
-    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_scene);                                                          vector_display_check_error("glBindFramebuffer");
-    glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);                                                         vector_display_check_error("glBindTexture");
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->width, self->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);     vector_display_check_error("glTexImage2D");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                           vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                        vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_scene_texid, 0);       vector_display_check_error("glFramebufferTexture2D");
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
-
-    // set up the glow0 framebuffer
-    glGenFramebuffers(1, &self->fb_glow0);                                                                            vector_display_check_error("glGenFramebuffers");
-    glGenTextures(1, &self->fb_glow0_texid);                                                                          vector_display_check_error("glGenTextures");
-    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);                                                                vector_display_check_error("glBindFramebuffer");
-    glBindTexture(GL_TEXTURE_2D, self->fb_glow0_texid);                                                               vector_display_check_error("glBindTexture");
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow0_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
-
-    // set up the glow1 framebuffer
-    glGenFramebuffers(1, &self->fb_glow1);                                                                            vector_display_check_error("glGenFramebuffers");
-    glGenTextures(1, &self->fb_glow1_texid);                                                                          vector_display_check_error("glGenTextures");
-    glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);                                                                vector_display_check_error("glBindFramebuffer");
-    glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);                                                               vector_display_check_error("glBindTexture");
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self->glow_width, self->glow_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL); vector_display_check_error("glTexImage2D");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MIN_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);                                                 vector_display_check_error("glTexParameteri GL_TEXTURE_MAG_FILTER");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_S");
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);                                              vector_display_check_error("glTexParameteri GL_TEXTURE_WRAP_T");
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, self->fb_glow1_texid, 0);             vector_display_check_error("glFramebufferTexture2D");
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) return -1;
+    // generate vertex buffers for the blits
+    glGenBuffers(1, &self->glow2glow_vertexbuffer);
+    glGenBuffers(1, &self->screen2screen_vertexbuffer);
+    glGenBuffers(1, &self->screen2glow_vertexbuffer);
+    glGenBuffers(1, &self->glow2screen_vertexbuffer);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     // create vertex buffers for fade
     glGenBuffers(self->steps, self->buffers);
 
-    // set up vertex buffer for painting from glow-sized texture to screen-sized texture
-    glGenBuffers(1, &self->glow2screen_vertexbuffer);
-    nocolor_point_t glow2screen_points[] = {
-    //    x                 y                  z           u, v
-    //   ------------------------------------------------------------
-        { 0,                0,                 10000,      0, 1 },        // upper left triangle
-        { self->width,      self->height,      10000,      1, 0 },
-        { self->width,      0,                 10000,      1, 1 },
-
-        { 0,                0,                 10000,      0, 1 },        // lower right triangle
-        { 0,                self->height,      10000,      0, 0 },
-        { self->width, self->height,           10000,      1, 0 },
-    };
-
-    // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->glow2screen_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2screen_points), glow2screen_points, GL_STATIC_DRAW);
-
-    // set up vertex buffer for painting from screen-sized texture to glow-sized texture
-    glGenBuffers(1, &self->screen2glow_vertexbuffer);
-    nocolor_point_t screen2glow_points[] = {
-    //    x                 y                  z           u, v
-    //   ------------------------------------------------------------
-        { 0,                0,                 10000,      0, 1 },        // upper left triangle
-        { self->glow_width, self->glow_height, 10000,      1, 0 },
-        { self->glow_width, 0,                 10000,      1, 1 },
-
-        { 0,                0,                 10000,      0, 1 },        // lower right triangle
-        { 0,                self->glow_height, 10000,      0, 0 },
-        { self->glow_width, self->glow_height, 10000,      1, 0 },
-    };
-    // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->screen2glow_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2glow_points), screen2glow_points, GL_STATIC_DRAW);
-
-    // set up vertex buffer for painting from screen-sized texture to screen-sized texture
-    glGenBuffers(1, &self->screen2screen_vertexbuffer);
-    nocolor_point_t screen2screen_points[] = {
-    //    x                 y                  z           u, v
-    //   ------------------------------------------------------------
-        { 0,                0,                 10000,      0, 1 },        // upper left triangle
-        { self->width,      self->height,      10000,      1, 0 },
-        { self->width,      0,                 10000,      1, 1 },
-
-        { 0,                0,                 10000,      0, 1 },        // lower right triangle
-        { 0,                self->height,      10000,      0, 0 },
-        { self->width,      self->height,      10000,      1, 0 },
-    };
-    // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->screen2screen_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(screen2screen_points), screen2screen_points, GL_STATIC_DRAW);
-
-
-    // set up vertex buffer for painting from glow-sized texture to glow-sized texture
-    glGenBuffers(1, &self->glow2glow_vertexbuffer);
-    nocolor_point_t glow2glow_points[] = {
-    //    x                 y                  z           u, v
-    //   ------------------------------------------------------------
-        { 0,                0,                 10000,      0, 1 },        // upper left triangle
-        { self->glow_width, self->glow_height, 10000,      1, 0 },
-        { self->glow_width, 0,                 10000,      1, 1 },
-
-        { 0,                0,                 10000,      0, 1 },        // lower right triangle
-        { 0,                self->glow_height, 10000,      0, 0 },
-        { self->glow_width, self->glow_height, 10000,      1, 0 },
-    };
-    // load up vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, self->glow2glow_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glow2glow_points), glow2glow_points, GL_STATIC_DRAW);
-
-    // put back old framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, origdrawbuffer);
+    rc = vector_display_setup_res_dependent(self);
+    if (rc < 0) return rc;
 
     return 0;
 }
 
 int vector_display_update(vector_display_t *self) {
+    if (!self->did_setup) return -1;
+
     GLfloat glow_projmat[] = {
         2.0f/self->glow_width, 0, 0, 0,
         0, -2.0f/self->glow_height, 0, 0,
@@ -1007,9 +1029,18 @@ int vector_display_update(vector_display_t *self) {
 }
 
 int vector_display_teardown(vector_display_t *self) {
+    if (!self->did_setup) return 0;
+
+    glDeleteBuffers(1, &self->glow2glow_vertexbuffer);
+    glDeleteBuffers(1, &self->screen2screen_vertexbuffer);
+    glDeleteBuffers(1, &self->screen2glow_vertexbuffer);
+    glDeleteBuffers(1, &self->glow2screen_vertexbuffer);
+    glDeleteTextures(1, &self->linetexid);
+    glDeleteBuffers(self->steps, self->buffers);
     glDeleteProgram(self->fb_program);
     glDeleteProgram(self->screen_program);
     glDeleteFramebuffers(1, &self->fb_scene);
+
     return 0;
 }
 
