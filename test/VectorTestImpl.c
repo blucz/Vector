@@ -14,29 +14,35 @@ static double scale = 1.0;
 static int offsetx;
 static int offsety;
 
+static void draw_line(vector_display_t *display, double x0, double y0, double x1, double y1) {
+    vector_display_begin_draw(display, x0, y0);
+    vector_display_draw_to(display, x1, y1);
+    vector_display_end_draw(display);
+}
+
 static void draw_wheel(vector_display_t *display, double angle, double x, double y, double radius) {
     double spokeradius = radius - 2.0f;
     // draw spokes
-    vector_display_draw(display,
-                        x + spokeradius * sin(angle),
-                        y - spokeradius * cos(angle),
-                        x - spokeradius * sin(angle),
-                        y + spokeradius * cos(angle));
-    vector_display_draw(display,
-                        x + spokeradius * sin(angle + M_PI / 4.0f),
-                        y - spokeradius * cos(angle + M_PI / 4.0f),
-                        x - spokeradius * sin(angle + M_PI / 4.0f),
-                        y + spokeradius * cos(angle + M_PI / 4.0f));
-    vector_display_draw(display,
-                        x + spokeradius * sin(angle + M_PI / 2.0f),
-                        y - spokeradius * cos(angle + M_PI / 2.0f),
-                        x - spokeradius * sin(angle + M_PI / 2.0f),
-                        y + spokeradius * cos(angle + M_PI / 2.0f));
-    vector_display_draw(display,
-                        x + spokeradius * sin(angle + 3.0f * M_PI / 4.0f),
-                        y - spokeradius * cos(angle + 3.0f * M_PI / 4.0f),
-                        x - spokeradius * sin(angle + 3.0f * M_PI / 4.0f),
-                        y + spokeradius * cos(angle + 3.0f * M_PI / 4.0f));
+    draw_line(display,
+              x + spokeradius * sin(angle),
+              y - spokeradius * cos(angle),
+              x - spokeradius * sin(angle),
+              y + spokeradius * cos(angle));
+    draw_line(display,
+              x + spokeradius * sin(angle + M_PI / 4.0f),
+              y - spokeradius * cos(angle + M_PI / 4.0f),
+              x - spokeradius * sin(angle + M_PI / 4.0f),
+              y + spokeradius * cos(angle + M_PI / 4.0f));
+    draw_line(display,
+              x + spokeradius * sin(angle + M_PI / 2.0f),
+              y - spokeradius * cos(angle + M_PI / 2.0f),
+              x - spokeradius * sin(angle + M_PI / 2.0f),
+              y + spokeradius * cos(angle + M_PI / 2.0f));
+    draw_line(display,
+              x + spokeradius * sin(angle + 3.0f * M_PI / 4.0f),
+              y - spokeradius * cos(angle + 3.0f * M_PI / 4.0f),
+              x - spokeradius * sin(angle + 3.0f * M_PI / 4.0f),
+              y + spokeradius * cos(angle + 3.0f * M_PI / 4.0f));
 
     double edgeangle = 0.0f;
     double angadjust = 0.0f;
@@ -115,15 +121,13 @@ VectorTestImpl_Draw()
     vector_display_set_color(display, 1.0f, 0.7f, 0.7f);
     for (i = 0; i < 4; i++) {
         for (j = 0; j < i; j++) {
-            vector_display_draw(display, fixx(50),  fixy(750 + 100 * i), fixx(400), fixy(750 + 100 * i));     // draw line
-            vector_display_draw(display, fixx(500), fixy(750 + 100 * i), fixx(500), fixy(750 + 100 * i));     // draw dot
+            draw_line(display, fixx(50),  fixy(750 + 100 * i), fixx(400), fixy(750 + 100 * i));     
         }
     }
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j <= i; j++) {
-            vector_display_draw(display, fixx(50 + 100 * i), fixy(1200), fixx(50 + 100 * i), fixy(1400));     // draw line
-            vector_display_draw(display, fixx(50 + 100 * i), fixy(1450), fixx(50 + 100 * i), fixy(1450));     // draw dot
+            draw_line(display, fixx(50 + 100 * i), fixy(1200), fixx(50 + 100 * i), fixy(1400));    
         }
     }
 

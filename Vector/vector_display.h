@@ -9,61 +9,132 @@
 #ifndef Vector_vector_display_h
 #define Vector_vector_display_h
 
+#define VECTOR_DISPLAY_MAX_DECAY_STEPS          (60)
+#define VECTOR_DISPLAY_DEFAULT_DECAY_STEPS      (5)
+#define VECTOR_DISPLAY_DEFAULT_DECAY            (0.8)
+#define VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY    (0.04)
+#define VECTOR_DISPLAY_DEFAULT_THICKNESS        (14.0f)
+#define VECTOR_DISPLAY_DEFAULT_OFFSET_X         (0.0)
+#define VECTOR_DISPLAY_DEFAULT_OFFSET_Y         (0.0)
+#define VECTOR_DISPLAY_DEFAULT_SCALE            (1.0)
+
+//
+// The type of vector displays
+//
 typedef struct vector_display vector_display_t;
 
-typedef void (*vector_display_log_cb_t)(const char *msg);
-
-// create a new vector display
+//
+// Create a new vector display object.
+//
 int vector_display_new(vector_display_t **out_self, double width, double height);
 
-// resize a vector display. This function clears the display
-int vector_display_resize(vector_display_t *self, double width, double height);
-
-// delete a vector display
+//
+// Delete a vector display object.
+//
 void vector_display_delete(vector_display_t *self);
 
-// update the screen. make sure that the screen's FBO is bound
+//
+// Tear down OpenGL state associated with the vector display.
+//
+// Assumes that the OpenGl context is already set and the screen's
+// FBO is bound.
+//
 int vector_display_update(vector_display_t *self);
 
-// setup opengl, assumes context is already set
+//
+// Setup OpenGL state associated with the vector display.
+//
+// Assumes that the OpenGl context is already set.
+//
 int vector_display_setup(vector_display_t *self);
 
-// tear down opengl, assumes context is already set
+//
+// Resize a vector display. 
+//
+// This function clears the display.
+//
+int vector_display_resize(vector_display_t *self, double width, double height);
+
+
+//
+// Tear down OpenGL state associated with the vector display.
+//
+// Assumes that the OpenGl context is already set.
+//
 int vector_display_teardown(vector_display_t *self);
 
-// clear display
+//
+// Clear the display.
+//
 int vector_display_clear(vector_display_t *self);
 
-// add a vector to the display list; x/y are from [0,1)
-int vector_display_draw(vector_display_t *self, double x0, double y0, double x1, double y1);
-
-// draw connected lines
+//
+// Draw a series of connected line segments.
+//
 int vector_display_begin_draw(vector_display_t *self, double x, double y);
 int vector_display_draw_to(vector_display_t *self, double x, double y);
 int vector_display_end_draw(vector_display_t *self);
 
-// set the drawing color
+//
+// Set the current drawing color
+//
 int vector_display_set_color(vector_display_t *self, double r, double g, double b);
 
-// set number of fade steps
-int vector_display_set_steps(vector_display_t *self, int steps);
+//
+// Set the number of frames of decay/fade to apply to the scene.
+//
+int vector_display_set_decay_steps(vector_display_t *self, int steps);
 
-// set decay per step
+//
+// Set the brightness multipler applied on each decay frame after the first.
+//
 int vector_display_set_decay(vector_display_t *self, double decay);
 
-// set decay on first step
+//
+// Set the brightness multipler applied on the first decay frame.
+//
 int vector_display_set_initial_decay(vector_display_t *self, double initial_decay);
 
-// set scale. this function clears the display.
+//
+// Set a 2d transformation for the display.
+//
+// This relates logical coordinates, as passed to vector_display_begin_draw, 
+// vector_display_draw_to, and vector_display_draw, to coordinates from (0,0) 
+// to (width,height) in the destination framebuffer.
+//
+// The parameters impact coordinates as follows:
+//
+//      framebuffer_x = x * scale + offset_x
+//      framebuffer_y = y * scale + offset_y
+//
 int vector_display_set_transform(vector_display_t *self, double offset_x, double offset_y, double scale);
 
-// set thickness. this function clears the display.
+//
+// Set the line thickness. 
+//
+// The line thickness is measured in scene coordinates, and includes all pixels lit by 
+// the line before any post-processing. The apparent width of the line to the viewer 
+// is significantly narrower, since brightness decays exponentially to zero within the 
+// bounds of the line.
+//
+// This function clears the display.
+//
 int vector_display_set_thickness(vector_display_t *self, double thickness);
 
-// get size previous set on vector display
+//
+// Get the size from a vector display.
+//
 void vector_display_get_size(vector_display_t *self, double *out_width, double *out_height);
 
-// install a logging callback
+//
+// Install a custom logging function for the vector display library.
+//
+// By default, vector display logs to stderr. On platforms where this isn't suitable,
+// reaplce the default logger with a custom log function.
+//
+// Set it back to null to return to the default.
+//
+typedef void (*vector_display_log_cb_t)(const char *msg);
 void vector_display_set_log_cb(vector_display_log_cb_t cb_log);
 
 #endif

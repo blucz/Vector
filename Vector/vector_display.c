@@ -18,12 +18,7 @@
 
 #include "vector_display_glinc.h"
 
-#define MAX_STEPS 60
-#define DEFAULT_STEPS 5
-#define DEFAULT_DECAY 0.8
-#define DEFAULT_INITIAL_DECAY 0.04
-#define DEFAULT_THICKNESS 8.0f
-#define TEXTURE_SIZE 128
+#define TEXTURE_SIZE 64
 #define HALF_TEXTURE_SIZE (TEXTURE_SIZE/2)
 
 #define min(x,y) ((x) < (y) ? (x) : (y))
@@ -114,7 +109,7 @@ struct vector_display {
 #define VERTEX_TEXCOORD_INDEX  (2)
 
 static int vector_display_init(vector_display_t *self, double width, double height) {
-    self->steps = DEFAULT_STEPS;
+    self->steps = VECTOR_DISPLAY_DEFAULT_DECAY_STEPS;
     self->buffers = (GLuint*)calloc(sizeof(GLuint), self->steps);
     self->buffernpoints = (GLuint*)calloc(sizeof(GLuint), self->steps);
 
@@ -124,18 +119,18 @@ static int vector_display_init(vector_display_t *self, double width, double heig
     self->pending_cpoints = 60;
     self->pending_points = (pending_point_t*)calloc(sizeof(pending_point_t), self->pending_cpoints);
 
-    self->decay = DEFAULT_DECAY;
+    self->decay = VECTOR_DISPLAY_DEFAULT_DECAY;
     self->r = self->g = self->b = self->a = 1.0f;
     self->width = width;
     self->height = height;
     self->glow_width = width   / 3.0;
     self->glow_height = height / 3.0;
-    self->initial_decay = DEFAULT_INITIAL_DECAY;
-    self->thickness = DEFAULT_THICKNESS;
+    self->initial_decay = VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY;
+    self->thickness = VECTOR_DISPLAY_DEFAULT_THICKNESS;
 
-    self->offset_x = 0;
-    self->offset_y = 0;
-    self->scale    = 1.0;
+    self->offset_x = VECTOR_DISPLAY_DEFAULT_OFFSET_X;
+    self->offset_y = VECTOR_DISPLAY_DEFAULT_OFFSET_Y;
+    self->scale    = VECTOR_DISPLAY_DEFAULT_SCALE;
 
     return 0;
 }
@@ -145,6 +140,7 @@ int vector_display_set_transform(vector_display_t *self, double offset_x, double
     self->offset_x = offset_x;
     self->offset_y = offset_y;
     self->scale    = scale;
+    return 0;
 }
 
 int vector_display_new(vector_display_t **out_self, double width, double height) {
@@ -452,7 +448,7 @@ void draw_fan(vector_display_t *self, float cx, float cy, float pa, float a, flo
 
 static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
     int    i;
-    float t = self->thickness;
+    float t = self->thickness * self->scale / 2;
 
     for (i = 0; i < nlines; i++) {
         line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines];
@@ -520,7 +516,7 @@ int vector_display_end_draw(vector_display_t *self) {
         return 0;
     }
 
-    float t = self->thickness;
+    float t = self->thickness * self->scale / 2;
     int i;
     int  first_last_same = abs(self->pending_points[0].x - self->pending_points[self->pending_npoints-1].x) < 0.1 &&
                            abs(self->pending_points[0].y - self->pending_points[self->pending_npoints-1].y) < 0.1;
@@ -622,15 +618,8 @@ int vector_display_end_draw(vector_display_t *self) {
     return 0;
 }
 
-int vector_display_draw(vector_display_t *self, double x0, double y0, double x1, double y1) {
-    vector_display_begin_draw(self, x0, y0);
-    vector_display_draw_to(self, x1, y1);
-    vector_display_end_draw(self);
-    return 0;
-}
-
-int vector_display_set_steps(vector_display_t *self, int steps) {
-    if (steps < 0 || steps > MAX_STEPS) return -1;
+int vector_display_set_decay_steps(vector_display_t *self, int steps) {
+    if (steps < 0 || steps > VECTOR_DISPLAY_MAX_DECAY_STEPS) return -1;
     if (self->did_setup) {
         glDeleteBuffers(self->steps, self->buffers);
     }
