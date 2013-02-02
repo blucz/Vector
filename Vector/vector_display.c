@@ -98,8 +98,11 @@ struct vector_display {
     int did_setup;
 
     double initial_decay;
+
     double thickness;
     int    custom_thickness;
+
+    double brightness;
 
     double offset_x, offset_y;
     double scale;
@@ -131,15 +134,16 @@ static int vector_display_init(vector_display_t *self, double width, double heig
 
     self->decay = VECTOR_DISPLAY_DEFAULT_DECAY;
     self->r = self->g = self->b = self->a = 1.0f;
-    self->width = width;
-    self->height = height;
-    self->glow_width = width   / 3.0;
-    self->glow_height = height / 3.0;
+    self->width       = width;
+    self->height      = height;
+    self->glow_width  = width  / 4.0;
+    self->glow_height = height / 4.0;
     self->initial_decay = VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY;
 
-    self->offset_x = VECTOR_DISPLAY_DEFAULT_OFFSET_X;
-    self->offset_y = VECTOR_DISPLAY_DEFAULT_OFFSET_Y;
-    self->scale    = VECTOR_DISPLAY_DEFAULT_SCALE;
+    self->offset_x   = VECTOR_DISPLAY_DEFAULT_OFFSET_X;
+    self->offset_y   = VECTOR_DISPLAY_DEFAULT_OFFSET_Y;
+    self->scale      = VECTOR_DISPLAY_DEFAULT_SCALE;
+    self->brightness = VECTOR_DISPLAY_DEFAULT_BRIGHTNESS;
 
     return 0;
 }
@@ -972,15 +976,20 @@ int vector_display_update(vector_display_t *self) {
     glVertexAttribPointer(VERTEX_TEXCOORD_INDEX, 2, GL_FLOAT, GL_TRUE, sizeof(nocolor_point_t), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(VERTEX_POS_INDEX);
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
+
+    double glow_iter_mult = 1.05 + ((self->brightness - 1.0) / 5.0);
+    double glow_fin_mult  = 1.25 + ((self->brightness - 1.0) / 2.0);
+
     glUniform1f(self->blur_uniform_alpha, 1.0);
-    glUniform1f(self->blur_uniform_mult, 1.05);
+    glUniform1f(self->blur_uniform_mult, glow_iter_mult);
 
     glViewport(0, 0, self->glow_width, self->glow_height);
 
     glBindTexture(GL_TEXTURE_2D, self->fb_scene_texid);
 
+    int npasses = (int)(self->brightness*4);
     int pass;
-    for (pass = 0; pass < 4; pass++) {
+    for (pass = 0; pass < npasses; pass++) {
         // render the glow1 texture to the glow0 buffer with horizontal blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow0);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -994,7 +1003,7 @@ int vector_display_update(vector_display_t *self) {
         glEnableVertexAttribArray(VERTEX_POS_INDEX);
         glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
         glUniform1f(self->blur_uniform_alpha, 1.0);
-        glUniform1f(self->blur_uniform_mult, 1.05);
+        glUniform1f(self->blur_uniform_mult, glow_iter_mult);
 
         // render the glow0 texture to the glow1 buffer with vertical blur
         glBindFramebuffer(GL_FRAMEBUFFER, self->fb_glow1);
@@ -1043,10 +1052,12 @@ int vector_display_update(vector_display_t *self) {
     glEnableVertexAttribArray(VERTEX_POS_INDEX);
     glEnableVertexAttribArray(VERTEX_TEXCOORD_INDEX);
 
-    // blend in the glow
-    glUniform1f(self->screen_uniform_mult, 1.5);
-    glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    if (self->brightness > 0) {
+        // blend in the glow
+        glUniform1f(self->screen_uniform_mult, glow_fin_mult);
+        glBindTexture(GL_TEXTURE_2D, self->fb_glow1_texid);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
 
     return 0;
 }
@@ -1064,6 +1075,11 @@ int vector_display_teardown(vector_display_t *self) {
     glDeleteProgram(self->screen_program);
     glDeleteFramebuffers(1, &self->fb_scene);
 
+    return 0;
+}
+
+int vector_display_set_brightness(vector_display_t *self, double brightness) {
+    self->brightness = brightness;
     return 0;
 }
 

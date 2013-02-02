@@ -16,6 +16,7 @@
 #define VECTOR_DISPLAY_DEFAULT_OFFSET_X         (0.0)
 #define VECTOR_DISPLAY_DEFAULT_OFFSET_Y         (0.0)
 #define VECTOR_DISPLAY_DEFAULT_SCALE            (1.0)
+#define VECTOR_DISPLAY_DEFAULT_BRIGHTNESS       (1.0)  
 
 //
 // The type of vector displays
@@ -122,6 +123,17 @@ int vector_display_set_transform(vector_display_t *self, double offset_x, double
 //
 int vector_display_set_thickness(vector_display_t *self, double thickness);
 int vector_display_set_default_thickness(vector_display_t *self);
+
+//
+// Set the "brightness" of the display
+//
+// useful values range from [0.5, 1.5]. 0.0 disables all glow effects.
+//
+// Due to implementation details of the glow effect, glow is related to 
+// the pixel density of the framebuffer. It may require adjustment, 
+// particularly when moving between devices of very different pixel density.
+//
+int vector_display_set_brightness(vector_display_t *self, double brightness);
 
 //
 // Get the size from a vector display.
