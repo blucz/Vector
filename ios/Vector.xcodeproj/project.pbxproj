@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3052245216BCD70C000D3D44 /* VectorTestImpl.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052245016BCD70C000D3D44 /* VectorTestImpl.c */; };
 		D34DA911165F069300AEA9C2 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA910165F069300AEA9C2 /* UIKit.framework */; };
 		D34DA913165F069300AEA9C2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA912165F069300AEA9C2 /* Foundation.framework */; };
 		D34DA915165F069300AEA9C2 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34DA914165F069300AEA9C2 /* CoreGraphics.framework */; };
@@ -26,6 +27,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3052245016BCD70C000D3D44 /* VectorTestImpl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = VectorTestImpl.c; path = ../test/VectorTestImpl.c; sourceTree = "<group>"; };
+		3052245116BCD70C000D3D44 /* VectorTestImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VectorTestImpl.h; path = ../test/VectorTestImpl.h; sourceTree = "<group>"; };
+		3052245416BCD760000D3D44 /* glinc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = glinc.h; sourceTree = "<group>"; };
 		D34DA90C165F069300AEA9C2 /* Vector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D34DA910165F069300AEA9C2 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		D34DA912165F069300AEA9C2 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -34,13 +38,13 @@
 		D34DA91A165F069300AEA9C2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D34DA91C165F069300AEA9C2 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		D34DA91E165F069300AEA9C2 /* Vector-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Vector-Prefix.pch"; sourceTree = "<group>"; };
-		D34DA91F165F069300AEA9C2 /* VectorAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = VectorAppDelegate.h; path = VectorAppDelegate.h; sourceTree = "<group>"; };
-		D34DA920165F069300AEA9C2 /* VectorAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = VectorAppDelegate.m; path = VectorAppDelegate.m; sourceTree = "<group>"; };
+		D34DA91F165F069300AEA9C2 /* VectorAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VectorAppDelegate.h; sourceTree = "<group>"; };
+		D34DA920165F069300AEA9C2 /* VectorAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = VectorAppDelegate.m; sourceTree = "<group>"; };
 		D34DA922165F069300AEA9C2 /* Default.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Default.png; sourceTree = "<group>"; };
 		D34DA924165F069300AEA9C2 /* Default@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default@2x.png"; sourceTree = "<group>"; };
 		D34DA926165F069300AEA9C2 /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-568h@2x.png"; sourceTree = "<group>"; };
-		D34DA937165F09FE00AEA9C2 /* MainViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MainViewController.h; path = MainViewController.h; sourceTree = "<group>"; };
-		D34DA938165F09FE00AEA9C2 /* MainViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MainViewController.m; path = MainViewController.m; sourceTree = "<group>"; };
+		D34DA937165F09FE00AEA9C2 /* MainViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MainViewController.h; sourceTree = "<group>"; };
+		D34DA938165F09FE00AEA9C2 /* MainViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MainViewController.m; sourceTree = "<group>"; };
 		D34DA93C165F0CF100AEA9C2 /* GLKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLKit.framework; path = System/Library/Frameworks/GLKit.framework; sourceTree = SDKROOT; };
 		D34DA93E165F0D0700AEA9C2 /* OpenGLES.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGLES.framework; path = System/Library/Frameworks/OpenGLES.framework; sourceTree = SDKROOT; };
 		D34DA940165F113300AEA9C2 /* vector_display.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = vector_display.h; sourceTree = "<group>"; };
@@ -115,6 +119,9 @@
 		D34DA916165F069300AEA9C2 /* Vector */ = {
 			isa = PBXGroup;
 			children = (
+				3052245416BCD760000D3D44 /* glinc.h */,
+				3052245016BCD70C000D3D44 /* VectorTestImpl.c */,
+				3052245116BCD70C000D3D44 /* VectorTestImpl.h */,
 				D382C7141697C8EE00BF7D64 /* vector_display_utils.c */,
 				D382C7151697C8EE00BF7D64 /* vector_display_utils.h */,
 				D34DA940165F113300AEA9C2 /* vector_display.h */,
@@ -124,8 +131,8 @@
 				D34DA943165F116D00AEA9C2 /* vector_display_platform_ios.c */,
 				D34DA945165F118600AEA9C2 /* vector_display_platform.h */,
 			);
+			name = Vector;
 			path = ../Vector;
-                        name = Vector;
 			sourceTree = "<group>";
 		};
 		D34DA917165F069300AEA9C2 /* Supporting Files */ = {
@@ -215,6 +222,7 @@
 				D34DA944165F116D00AEA9C2 /* vector_display_platform_ios.c in Sources */,
 				D3779FB516925E08008C7653 /* vector_font_simplex.c in Sources */,
 				D382C7161697C8EE00BF7D64 /* vector_display_utils.c in Sources */,
+				3052245216BCD70C000D3D44 /* VectorTestImpl.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -4,5 +4,7 @@
 void VectorTestImpl_Draw();
 void VectorTestImpl_Init();
 void VectorTestImpl_Resize(int w, int h);
+void VectorTestImpl_Destroy();
+
 
 #endif

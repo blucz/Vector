@@ -163,3 +163,15 @@ VectorTestImpl_Resize(int w, int h)
 {
     vector_display_resize(display, w, h);
 }
+
+void
+VectorTestImpl_Destroy()
+{
+    int rc;
+    rc = vector_display_teardown(display);
+    if (rc != 0) {
+        printf("Failed to tear down vector display: rc=%d", rc);
+        exit(1);
+    }
+    vector_display_delete(display);
+}
