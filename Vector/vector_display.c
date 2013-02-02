@@ -99,6 +99,7 @@ struct vector_display {
 
     double initial_decay;
     double thickness;
+    int    custom_thickness;
 
     double offset_x, offset_y;
     double scale;
@@ -107,6 +108,15 @@ struct vector_display {
 #define VERTEX_POS_INDEX       (0)
 #define VERTEX_COLOR_INDEX     (1)
 #define VERTEX_TEXCOORD_INDEX  (2)
+
+static double effective_thickness(vector_display_t *self) {
+    if (self->custom_thickness) {
+        return self->thickness * self->scale / 2;
+    } else {
+        // this makes thickness=16 at 2048x1536
+        return (0.01 * (self->width + self->height) / 2.0) * self->scale / 2;
+    }
+}
 
 static int vector_display_init(vector_display_t *self, double width, double height) {
     self->steps = VECTOR_DISPLAY_DEFAULT_DECAY_STEPS;
@@ -126,7 +136,6 @@ static int vector_display_init(vector_display_t *self, double width, double heig
     self->glow_width = width   / 3.0;
     self->glow_height = height / 3.0;
     self->initial_decay = VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY;
-    self->thickness = VECTOR_DISPLAY_DEFAULT_THICKNESS;
 
     self->offset_x = VECTOR_DISPLAY_DEFAULT_OFFSET_X;
     self->offset_y = VECTOR_DISPLAY_DEFAULT_OFFSET_Y;
@@ -302,7 +311,13 @@ int vector_display_set_initial_decay(vector_display_t *self, double initial_deca
 
 int vector_display_set_thickness(vector_display_t *self, double thickness) {
     if (thickness <= 0) return -1;
+    self->custom_thickness = 1;
     self->thickness = thickness;
+    return 0;
+}
+
+int vector_display_set_default_thickness(vector_display_t *self) {
+    self->custom_thickness = 0;
     return 0;
 }
 
@@ -448,7 +463,7 @@ void draw_fan(vector_display_t *self, float cx, float cy, float pa, float a, flo
 
 static void draw_lines(vector_display_t *self, line_t *lines, int nlines) {
     int    i;
-    float t = self->thickness * self->scale / 2;
+    float t = effective_thickness(self);
 
     for (i = 0; i < nlines; i++) {
         line_t *line  = &lines[i], *pline = &lines[(nlines+i-1)%nlines];
@@ -516,7 +531,7 @@ int vector_display_end_draw(vector_display_t *self) {
         return 0;
     }
 
-    float t = self->thickness * self->scale / 2;
+    float t = effective_thickness(self);
     int i;
     int  first_last_same = abs(self->pending_points[0].x - self->pending_points[self->pending_npoints-1].x) < 0.1 &&
                            abs(self->pending_points[0].y - self->pending_points[self->pending_npoints-1].y) < 0.1;

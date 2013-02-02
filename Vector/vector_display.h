@@ -13,7 +13,6 @@
 #define VECTOR_DISPLAY_DEFAULT_DECAY_STEPS      (5)
 #define VECTOR_DISPLAY_DEFAULT_DECAY            (0.8)
 #define VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY    (0.04)
-#define VECTOR_DISPLAY_DEFAULT_THICKNESS        (14.0f)
 #define VECTOR_DISPLAY_DEFAULT_OFFSET_X         (0.0)
 #define VECTOR_DISPLAY_DEFAULT_OFFSET_Y         (0.0)
 #define VECTOR_DISPLAY_DEFAULT_SCALE            (1.0)
@@ -117,9 +116,12 @@ int vector_display_set_transform(vector_display_t *self, double offset_x, double
 // is significantly narrower, since brightness decays exponentially to zero within the 
 // bounds of the line.
 //
+// Thickness, by default, is guessed based on width and height.
+//
 // This function clears the display.
 //
 int vector_display_set_thickness(vector_display_t *self, double thickness);
+int vector_display_set_default_thickness(vector_display_t *self);
 
 //
 // Get the size from a vector display.
