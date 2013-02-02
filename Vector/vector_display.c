@@ -1016,3 +1016,8 @@ int vector_display_teardown(vector_display_t *self) {
 void vector_display_delete(vector_display_t *self) {
     free(self);
 }
+
+void vector_display_get_size(vector_display_t *self, double *out_width, double *out_height) {
+    *out_width = self->width;
+    *out_height = self->height;
+}

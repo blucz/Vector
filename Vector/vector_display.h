@@ -55,4 +55,7 @@ int vector_display_set_initial_decay(vector_display_t *self, double initial_deca
 // set thickness
 int vector_display_set_thickness(vector_display_t *self, double thickness);
 
+// get size previous set on vector display
+void vector_display_get_size(vector_display_t *self, double *out_width, double *out_height);
+
 #endif
