@@ -1,31 +1,12 @@
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#include <GLUT/glut.h>
-
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
+#include "glinc.h"
 #include "vector_display.h"
 #include "vector_font_simplex.h"
 
 vector_display_t *display;
-
-void myInit() {
-    int rc;
-    rc = vector_display_new(&display, 2048, 1536);
-    if (rc != 0) {
-        printf("Failed to create vector display: rc=%d", rc);
-        exit(1);
-    }
-
-    rc = vector_display_setup(display);
-    if (rc != 0) {
-        printf("Failed to setup vector display: rc=%d", rc);
-        exit(1);
-    }
-}
 
 static void draw_wheel(vector_display_t *display, double angle, double x, double y, double radius) {
     double spokeradius = radius - 2.0f;
@@ -91,7 +72,9 @@ static void draw_box(vector_display_t *display, double x, double y, double w, do
     vector_display_end_draw(display);
 }
 
-void myDisplay() {
+void
+VectorTestImpl_Draw()
+{
     int i, j;
 
     vector_display_clear(display);
@@ -158,19 +141,25 @@ void myDisplay() {
     glFlush(); //Write this out to the screen
 }
 
-int main (int argc, char **argv) {
-    glutInit(&argc,argv);
-    glutInitDisplayMode(GLUT_SINGLE|GLUT_RGB);
-    glutInitWindowSize(1024, 1024);
-    glutInitWindowPosition(100,100);
-    glutCreateWindow("Vector");
+void
+VectorTestImpl_Init()
+{
+    int rc;
+    rc = vector_display_new(&display, 2048, 1536);
+    if (rc != 0) {
+        printf("Failed to create vector display: rc=%d", rc);
+        exit(1);
+    }
 
-    glutDisplayFunc(myDisplay);
-
-    myInit();
-
-    glutMainLoop();
-
-    return 0;
+    rc = vector_display_setup(display);
+    if (rc != 0) {
+        printf("Failed to setup vector display: rc=%d", rc);
+        exit(1);
+    }
 }
 
+void
+VectorTestImpl_Resize(int w, int h)
+{
+    vector_display_resize(display, w, h);
+}
