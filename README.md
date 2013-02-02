@@ -1,8 +1,9 @@
 Vector
 ======
 
-Vector emulates a vector display, like those found on the Tektronix terminals and in arcade games such as Asteroids and Tempest.
-arcade games. It is implemented in OpenGL and OpenGL ES2.
+Vector emulates a vector display, like those found on the Tektronix terminals
+and in arcade games such as Asteroids and Tempest. It is implemented in OpenGL
+and OpenGL ES2.
 
 For example:
 - *Tektronix* http://www.youtube.com/watch?v=tpD1QXvtlcg
