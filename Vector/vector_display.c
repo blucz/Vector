@@ -104,6 +104,9 @@ struct vector_display {
 
     double initial_decay;
     double thickness;
+
+    double offset_x, offset_y;
+    double scale;
 };
 
 #define VERTEX_POS_INDEX       (0)
@@ -129,7 +132,19 @@ static int vector_display_init(vector_display_t *self, double width, double heig
     self->glow_height = height / 3.0;
     self->initial_decay = DEFAULT_INITIAL_DECAY;
     self->thickness = DEFAULT_THICKNESS;
+
+    self->offset_x = 0;
+    self->offset_y = 0;
+    self->scale    = 1.0;
+
     return 0;
+}
+
+int vector_display_set_transform(vector_display_t *self, double offset_x, double offset_y, double scale) {
+    vector_display_clear(self);
+    self->offset_x = offset_x;
+    self->offset_y = offset_y;
+    self->scale    = scale;
 }
 
 int vector_display_new(vector_display_t **out_self, double width, double height) {
@@ -279,6 +294,7 @@ int vector_display_resize(vector_display_t *self, double width, double height) {
     self->glow_width = width   / 3.0;
     self->glow_height = height / 3.0;
     vector_display_setup_res_dependent(self);
+    vector_display_clear(self);
     return 0;
 }
 
@@ -347,16 +363,16 @@ int vector_display_begin_draw(vector_display_t *self, double x, double y) {
         abort();
     }
     ensure_pending_points(self, self->pending_npoints + 1);
-    self->pending_points[self->pending_npoints].x = x;
-    self->pending_points[self->pending_npoints].y = y;
+    self->pending_points[self->pending_npoints].x = x * self->scale + self->offset_x;
+    self->pending_points[self->pending_npoints].y = y * self->scale + self->offset_y;
     self->pending_npoints++;
     return 0;
 }
 
 int vector_display_draw_to(vector_display_t *self, double x, double y) {
     ensure_pending_points(self, self->pending_npoints + 1);
-    self->pending_points[self->pending_npoints].x = x;
-    self->pending_points[self->pending_npoints].y = y;
+    self->pending_points[self->pending_npoints].x = x * self->scale + self->offset_x;
+    self->pending_points[self->pending_npoints].y = y * self->scale + self->offset_y;
     self->pending_npoints++;
     return 0;
 }

@@ -16,7 +16,7 @@ typedef void (*vector_display_log_cb_t)(const char *msg);
 // create a new vector display
 int vector_display_new(vector_display_t **out_self, double width, double height);
 
-// resize a vector display
+// resize a vector display. This function clears the display
 int vector_display_resize(vector_display_t *self, double width, double height);
 
 // delete a vector display
@@ -54,7 +54,10 @@ int vector_display_set_decay(vector_display_t *self, double decay);
 // set decay on first step
 int vector_display_set_initial_decay(vector_display_t *self, double initial_decay);
 
-// set thickness
+// set scale. this function clears the display.
+int vector_display_set_transform(vector_display_t *self, double offset_x, double offset_y, double scale);
+
+// set thickness. this function clears the display.
 int vector_display_set_thickness(vector_display_t *self, double thickness);
 
 // get size previous set on vector display
