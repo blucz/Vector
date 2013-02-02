@@ -11,6 +11,8 @@
 
 typedef struct vector_display vector_display_t;
 
+typedef void (*vector_display_log_cb_t)(const char *msg);
+
 // create a new vector display
 int vector_display_new(vector_display_t **out_self, double width, double height);
 
@@ -57,5 +59,8 @@ int vector_display_set_thickness(vector_display_t *self, double thickness);
 
 // get size previous set on vector display
 void vector_display_get_size(vector_display_t *self, double *out_width, double *out_height);
+
+// install a logging callback
+void vector_display_set_log_cb(vector_display_log_cb_t cb_log);
 
 #endif

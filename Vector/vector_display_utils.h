@@ -9,11 +9,13 @@
 #ifndef Vector_vector_display_utils_h
 #define Vector_vector_display_utils_h
 
-#include "glinc.h"
+#include "vector_display_glinc.h"
 
 GLuint vector_display_load_shader(GLenum type, const char *shaderSrc);
 void vector_display_check_error(const char *desc);
 int vector_display_check_program_link(GLuint program);
+
+void vector_display_debugf(const char *fmt, ...);
 
 typedef unsigned short hfloat;
 hfloat float_to_hfloat(float f);

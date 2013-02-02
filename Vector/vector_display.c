@@ -9,7 +9,6 @@
 //#define DEBUG_TRIANGLES 1
 
 #include "vector_display.h"
-#include "vector_display_platform.h"
 #include "vector_display_utils.h"
 
 #include <stdlib.h>
@@ -17,7 +16,7 @@
 #include <float.h>
 #include <math.h>
 
-#include "glinc.h"
+#include "vector_display_glinc.h"
 
 #define MAX_STEPS 60
 #define DEFAULT_STEPS 5
@@ -82,12 +81,12 @@ struct vector_display {
 
     int nvectors;
 
-    size_t cpoints;
-    size_t npoints;
+    int cpoints;
+    int npoints;
     point_t *points;
 
-    size_t pending_cpoints;
-    size_t pending_npoints;
+    int pending_cpoints;
+    int pending_npoints;
     pending_point_t *pending_points;
 
     int step;
@@ -254,6 +253,8 @@ int vector_display_setup_res_dependent(vector_display_t *self) {
 
     // put back old framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, origdrawbuffer);
+
+    return 0;
 }
 
 int vector_display_teardown_res_dependent(vector_display_t *self) {
@@ -267,6 +268,8 @@ int vector_display_teardown_res_dependent(vector_display_t *self) {
 
     glDeleteFramebuffers(1, &self->fb_glow1);
     glDeleteTextures(1, &self->fb_glow1_texid);
+
+    return 0;
 }
 
 int vector_display_resize(vector_display_t *self, double width, double height) {
@@ -340,7 +343,7 @@ static void append_texpoint(vector_display_t *self, double x, double y, double u
 
 int vector_display_begin_draw(vector_display_t *self, double x, double y) {
     if (self->pending_npoints != 0) {
-        debugf("assertion failure");
+        vector_display_debugf("assertion failure");
         abort();
     }
     ensure_pending_points(self, self->pending_npoints + 1);
@@ -406,15 +409,15 @@ void draw_fan(vector_display_t *self, float cx, float cy, float pa, float a, flo
         angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = a + i * a2pa / nsteps;
-        //debugf("%fd in %d steps", a2pa, nsteps);
+        //vector_display_debugf("%fd in %d steps", a2pa, nsteps);
     } else {
         nsteps = max(1, round(pa2a / (M_PI / 8)));
         angles = alloca(sizeof(float) * (nsteps + 1));
         for (i = 0; i <= nsteps; i++)
             angles[i] = pa + i * pa2a / nsteps;
-        //debugf("%fd in %d steps", pa2a, nsteps);
+        //vector_display_debugf("%fd in %d steps", pa2a, nsteps);
     }
-    //debugf("---- %f -> %f nsteps=%d", 360*pa/M_PI/2, 360*a/M_PI/2, 360*pa2a/M_PI/2, 360*a2pa/M_PI/2, nsteps);
+    //vector_display_debugf("---- %f -> %f nsteps=%d", 360*pa/M_PI/2, 360*a/M_PI/2, 360*pa2a/M_PI/2, 360*a2pa/M_PI/2, nsteps);
 
     for (i = 1; i <= nsteps; i++) {
 #if DEBUG_TRIANGLES
@@ -554,7 +557,7 @@ int vector_display_end_draw(vector_display_t *self) {
                     } else {
                         line->s0 = pline->s1 = shorten;
                     }
-                    //debugf("ad =  %f, shorten by %f (len=%f), rthickness %f (from %f)", a, line->s0, line->len, line->tr0, t);
+                    //vector_display_debugf("ad =  %f, shorten by %f (len=%f), rthickness %f (from %f)", a, line->s0, line->len, line->tr0, t);
                 } else {
                     float shorten = t * sin(pa2a/2) / cos(pa2a/2);
                     float a       = (M_PI - pa2a) / 2;
@@ -564,7 +567,7 @@ int vector_display_end_draw(vector_display_t *self) {
                     } else {
                         line->s0 = pline->s1 = shorten;
                     }
-                    //debugf("ad =  %f, shorten by %f (len=%f), rthickness by %f (from %f)", a, line->s0, line->len, line->tl0, t);
+                    //vector_display_debugf("ad =  %f, shorten by %f (len=%f), rthickness by %f (from %f)", a, line->s0, line->len, line->tl0, t);
                 }
             } else {
                 line->has_prev  = 0;
@@ -898,7 +901,7 @@ int vector_display_update(vector_display_t *self) {
     // populate vertex buffer for the current step from the vector data
     glBindBuffer(GL_ARRAY_BUFFER, self->buffers[self->step]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(point_t) * self->npoints, self->points, GL_STATIC_DRAW);
-    self->buffernpoints[self->step] = self->npoints;
+    self->buffernpoints[self->step] = (GLuint)self->npoints;
 
     // draw
     int loopvar;
@@ -906,10 +909,10 @@ int vector_display_update(vector_display_t *self) {
         int stepi = self->steps - loopvar - 1;
         //int stepi = loopvar;
         int i = (self->step + self->steps - stepi) % self->steps;
-        //debugf("render buffer %d/%d i = %d", stepi, self->steps, i);
+        //vector_display_debugf("render buffer %d/%d i = %d", stepi, self->steps, i);
 
         if (self->buffernpoints[i] == 0) {
-            //debugf("skip buffer %d", stepi);
+            //vector_display_debugf("skip buffer %d", stepi);
         } else {
             float alpha;
             if (stepi == 0) {
@@ -1051,4 +1054,9 @@ void vector_display_delete(vector_display_t *self) {
 void vector_display_get_size(vector_display_t *self, double *out_width, double *out_height) {
     *out_width = self->width;
     *out_height = self->height;
+}
+
+extern vector_display_log_cb_t vector_display_log_cb;
+void vector_display_set_log_cb(vector_display_log_cb_t cb_log) {
+    vector_display_log_cb = cb_log;
 }

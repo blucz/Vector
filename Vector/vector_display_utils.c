@@ -1,10 +1,36 @@
 #include "vector_display_utils.h"
-#include "vector_display_platform.h"
+#include "vector_display.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+vector_display_log_cb_t vector_display_log_cb = NULL;
+
+void vector_display_debugf(const char *fmt, ...) {
+    vector_display_log_cb_t log_cb = vector_display_log_cb;
+
+    if (log_cb) {
+        char buf[8192];
+        va_list ap;
+        va_start(ap, fmt);
+        vsnprintf(buf, sizeof(buf), fmt, ap);
+        log_cb(buf);
+        va_end(ap);
+    } else {
+        // log to stderr
+        va_list ap;
+        fprintf(stderr, "[vector_display] ");
+        va_start(ap, fmt);
+        vfprintf(stderr, fmt, ap);
+        va_end(ap);
+        fprintf(stderr, "\n");
+        fflush(stderr);
+    }
+}
 
 // NOTE: returns 0 on failure
 GLuint vector_display_load_shader(GLenum type, const char *shaderSrc) {
@@ -25,7 +51,7 @@ GLuint vector_display_load_shader(GLenum type, const char *shaderSrc) {
         if(infoLen > 1) {
             char* infoLog = malloc(sizeof(char) * infoLen);
             glGetShaderInfoLog(shader, infoLen, NULL, infoLog);
-            debugf("Error compiling shader:\n%s\n", infoLog);
+            vector_display_debugf("Error compiling shader:\n%s\n", infoLog);
             free(infoLog);
         }
         glDeleteShader(shader);
@@ -37,7 +63,7 @@ GLuint vector_display_load_shader(GLenum type, const char *shaderSrc) {
 void vector_display_check_error(const char *desc) {
     GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
-        debugf("opengl error in %s: %d", desc, (int)err);
+        vector_display_debugf("opengl error in %s: %d", desc, (int)err);
     }
 }
 
@@ -50,7 +76,7 @@ int vector_display_check_program_link(GLuint program) {
         if(infoLen > 1) {
             char* infoLog = malloc(sizeof(char) * infoLen);
             glGetProgramInfoLog(program, infoLen, NULL, infoLog);
-            debugf("Error linking program:\n%s\n", infoLog);
+            vector_display_debugf("Error linking program:\n%s\n", infoLog);
             free(infoLog);
         }
         glDeleteProgram(program);

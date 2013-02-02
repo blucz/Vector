@@ -1,5 +1,4 @@
 #include "vector_font_simplex.h"
-#include "vector_display_platform.h"
 #include "vector_display.h"
 
 static int simplex[95][112] = {

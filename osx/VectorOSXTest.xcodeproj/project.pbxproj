@@ -15,7 +15,6 @@
 		3052242516BC88DD000D3D44 /* VectorTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 3052242416BC88DD000D3D44 /* VectorTest.m */; };
 		3052243E16BCD2F4000D3D44 /* VectorTestImpl.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052243C16BCD2F4000D3D44 /* VectorTestImpl.c */; };
 		3052244816BCD305000D3D44 /* vector_display.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052243F16BCD305000D3D44 /* vector_display.c */; };
-		3052244916BCD305000D3D44 /* vector_display_platform_ios.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052244116BCD305000D3D44 /* vector_display_platform_ios.c */; };
 		3052244A16BCD305000D3D44 /* vector_display_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052244316BCD305000D3D44 /* vector_display_utils.c */; };
 		3052244B16BCD305000D3D44 /* vector_font_simplex.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052244616BCD305000D3D44 /* vector_font_simplex.c */; };
 /* End PBXBuildFile section */
@@ -38,9 +37,7 @@
 		3052243C16BCD2F4000D3D44 /* VectorTestImpl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = VectorTestImpl.c; path = ../test/VectorTestImpl.c; sourceTree = "<group>"; };
 		3052243D16BCD2F4000D3D44 /* VectorTestImpl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VectorTestImpl.h; path = ../test/VectorTestImpl.h; sourceTree = "<group>"; };
 		3052243F16BCD305000D3D44 /* vector_display.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector_display.c; path = ../Vector/vector_display.c; sourceTree = "<group>"; };
-		3052244016BCD305000D3D44 /* glinc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = glinc.h; path = ../Vector/glinc.h; sourceTree = "<group>"; };
-		3052244116BCD305000D3D44 /* vector_display_platform_ios.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector_display_platform_ios.c; path = ../Vector/vector_display_platform_ios.c; sourceTree = "<group>"; };
-		3052244216BCD305000D3D44 /* vector_display_platform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_display_platform.h; path = ../Vector/vector_display_platform.h; sourceTree = "<group>"; };
+		3052244016BCD305000D3D44 /* vector_display_glinc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_display_glinc.h; path = ../Vector/vector_display_glinc.h; sourceTree = "<group>"; };
 		3052244316BCD305000D3D44 /* vector_display_utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector_display_utils.c; path = ../Vector/vector_display_utils.c; sourceTree = "<group>"; };
 		3052244416BCD305000D3D44 /* vector_display_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_display_utils.h; path = ../Vector/vector_display_utils.h; sourceTree = "<group>"; };
 		3052244516BCD305000D3D44 /* vector_display.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_display.h; path = ../Vector/vector_display.h; sourceTree = "<group>"; };
@@ -125,9 +122,7 @@
 			isa = PBXGroup;
 			children = (
 				3052243F16BCD305000D3D44 /* vector_display.c */,
-				3052244016BCD305000D3D44 /* glinc.h */,
-				3052244116BCD305000D3D44 /* vector_display_platform_ios.c */,
-				3052244216BCD305000D3D44 /* vector_display_platform.h */,
+				3052244016BCD305000D3D44 /* vector_display_glinc.h */,
 				3052244316BCD305000D3D44 /* vector_display_utils.c */,
 				3052244416BCD305000D3D44 /* vector_display_utils.h */,
 				3052244516BCD305000D3D44 /* vector_display.h */,
@@ -207,7 +202,6 @@
 				3052242516BC88DD000D3D44 /* VectorTest.m in Sources */,
 				3052243E16BCD2F4000D3D44 /* VectorTestImpl.c in Sources */,
 				3052244816BCD305000D3D44 /* vector_display.c in Sources */,
-				3052244916BCD305000D3D44 /* vector_display_platform_ios.c in Sources */,
 				3052244A16BCD305000D3D44 /* vector_display_utils.c in Sources */,
 				3052244B16BCD305000D3D44 /* vector_font_simplex.c in Sources */,
 			);

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "glinc.h"
+#include "vector_display_glinc.h"
 #include "vector_display.h"
 #include "vector_font_simplex.h"
 
