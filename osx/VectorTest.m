@@ -31,11 +31,13 @@
     GLint swapInt = 1;
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 
-    VectorTestImpl_Init();
+    NSRect rect = [self convertRectToBacking:[self bounds]];
+    VectorTestImpl_Init(rect.size.width, rect.size.height);
 }
 
 - (void)reshape {
-    NSRect rect = [self bounds];
+    NSRect rect = [self convertRectToBacking:[self bounds]];
+
     VectorTestImpl_Resize(rect.size.width, rect.size.height);
 }
 

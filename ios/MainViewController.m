@@ -29,8 +29,33 @@
     self.preferredFramesPerSecond = 30;
 
     [EAGLContext setCurrentContext:self.context];
+
+    CGRect frame = [[UIScreen mainScreen] applicationFrame];
     
-    VectorTestImpl_Init();
+    //check if you should rotate the view, e.g. change width and height of the frame
+    BOOL rotate = NO;
+    if ( UIInterfaceOrientationIsLandscape( [UIApplication sharedApplication].statusBarOrientation ) ) {
+        if (frame.size.width < frame.size.height) {
+            rotate = YES;
+        }
+    }
+    
+    if ( UIInterfaceOrientationIsPortrait( [UIApplication sharedApplication].statusBarOrientation ) ) {
+        if (frame.size.width > frame.size.height) {
+            rotate = YES;
+        }
+    }
+    
+    if (rotate) {
+        CGFloat tmp = frame.size.height;
+        frame.size.height = frame.size.width;
+        frame.size.width = tmp;
+    }
+
+    CGFloat scale = [[UIScreen mainScreen] scale];
+    VectorTestImpl_Init(frame.size.width * scale,
+                        frame.size.height * scale);
+
 }
 
 - (void)update {
