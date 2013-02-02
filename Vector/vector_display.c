@@ -111,10 +111,7 @@ struct vector_display {
 #define VERTEX_COLOR_INDEX     (1)
 #define VERTEX_TEXCOORD_INDEX  (2)
 
-
-int vector_display_new(vector_display_t **out_self, double width, double height) {
-    vector_display_t *self = (vector_display_t*)calloc(sizeof(vector_display_t), 1);
-    if (self == NULL) return -1;
+static int vector_display_init(vector_display_t *self, double width, double height) {
     self->steps = DEFAULT_STEPS;
     self->buffers = (GLuint*)calloc(sizeof(GLuint), self->steps);
     self->buffernpoints = (GLuint*)calloc(sizeof(GLuint), self->steps);
@@ -133,7 +130,25 @@ int vector_display_new(vector_display_t **out_self, double width, double height)
     self->glow_height = height / 3.0;
     self->initial_decay = DEFAULT_INITIAL_DECAY;
     self->thickness = DEFAULT_THICKNESS;
+    return 0;
+}
+
+int vector_display_new(vector_display_t **out_self, double width, double height) {
+    vector_display_t *self = (vector_display_t*)calloc(sizeof(vector_display_t), 1);
+    if (self == NULL) return -1;
+    vector_display_init(self, width, height);
     *out_self = self;
+    return 0;
+}
+
+int vector_display_resize(vector_display_t *self, double width, double height) {
+    int rc;
+    rc = vector_display_teardown(self);
+    if (rc != 0) return rc;
+    rc = vector_display_init(self, width, height);
+    if (rc != 0) return rc;
+    rc = vector_display_setup(self);
+    if (rc != 0) return rc;
     return 0;
 }
 
@@ -222,11 +237,13 @@ static float normalizef(float a) {
     return a;
 }
 
+/*
 static double normalize(double a) {
     while (a > 2*M_PI + DBL_EPSILON) a -= 2*M_PI;
     while (a < 0 - DBL_EPSILON)      a += 2*M_PI;
     return a;
 }
+*/
 
 typedef struct {
     float x0, y0, x1, y1;                      // nominal points
@@ -993,7 +1010,7 @@ int vector_display_teardown(vector_display_t *self) {
     glDeleteProgram(self->fb_program);
     glDeleteProgram(self->screen_program);
     glDeleteFramebuffers(1, &self->fb_scene);
-    return -1;
+    return 0;
 }
 
 void vector_display_delete(vector_display_t *self) {

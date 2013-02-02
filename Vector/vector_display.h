@@ -14,6 +14,9 @@ typedef struct vector_display vector_display_t;
 // create a new vector display
 int vector_display_new(vector_display_t **out_self, double width, double height);
 
+// resize a vector display
+int vector_display_resize(vector_display_t *self, double width, double height);
+
 // delete a vector display
 void vector_display_delete(vector_display_t *self);
 
