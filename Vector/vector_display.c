@@ -117,7 +117,8 @@ static double effective_thickness(vector_display_t *self) {
         return self->thickness * self->scale / 2;
     } else {
         // this makes thickness=16 at 2048x1536
-        return (0.01 * (self->width + self->height) / 2.0) * self->scale / 2;
+        double v = (0.01 * (self->width + self->height) / 2.0) * self->scale / 2;
+        return max(v, 6);
     }
 }
 
