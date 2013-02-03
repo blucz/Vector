@@ -17,6 +17,7 @@
 		3052244816BCD305000D3D44 /* vector_display.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052243F16BCD305000D3D44 /* vector_display.c */; };
 		3052244A16BCD305000D3D44 /* vector_display_utils.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052244316BCD305000D3D44 /* vector_display_utils.c */; };
 		3052244B16BCD305000D3D44 /* vector_font_simplex.c in Sources */ = {isa = PBXBuildFile; fileRef = 3052244616BCD305000D3D44 /* vector_font_simplex.c */; };
+		30C963A316BDFC9A00805A37 /* vector_shapes.c in Sources */ = {isa = PBXBuildFile; fileRef = 30C963A216BDFC9A00805A37 /* vector_shapes.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,8 @@
 		3052244516BCD305000D3D44 /* vector_display.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_display.h; path = ../Vector/vector_display.h; sourceTree = "<group>"; };
 		3052244616BCD305000D3D44 /* vector_font_simplex.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector_font_simplex.c; path = ../Vector/vector_font_simplex.c; sourceTree = "<group>"; };
 		3052244716BCD305000D3D44 /* vector_font_simplex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_font_simplex.h; path = ../Vector/vector_font_simplex.h; sourceTree = "<group>"; };
+		30C963A116BDFC9A00805A37 /* vector_shapes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = vector_shapes.h; path = ../Vector/vector_shapes.h; sourceTree = "<group>"; };
+		30C963A216BDFC9A00805A37 /* vector_shapes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = vector_shapes.c; path = ../Vector/vector_shapes.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +124,8 @@
 		3052243B16BCD2CB000D3D44 /* Vector */ = {
 			isa = PBXGroup;
 			children = (
+				30C963A116BDFC9A00805A37 /* vector_shapes.h */,
+				30C963A216BDFC9A00805A37 /* vector_shapes.c */,
 				3052243F16BCD305000D3D44 /* vector_display.c */,
 				3052244016BCD305000D3D44 /* vector_display_glinc.h */,
 				3052244316BCD305000D3D44 /* vector_display_utils.c */,
@@ -204,6 +209,7 @@
 				3052244816BCD305000D3D44 /* vector_display.c in Sources */,
 				3052244A16BCD305000D3D44 /* vector_display_utils.c in Sources */,
 				3052244B16BCD305000D3D44 /* vector_font_simplex.c in Sources */,
+				30C963A316BDFC9A00805A37 /* vector_shapes.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
