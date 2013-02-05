@@ -137,8 +137,8 @@ static int vector_display_init(vector_display_t *self, double width, double heig
     self->r = self->g = self->b = self->a = 1.0f;
     self->width       = width;
     self->height      = height;
-    self->glow_width  = width  / 4.0;
-    self->glow_height = height / 4.0;
+    self->glow_width  = width  / 3.0;
+    self->glow_height = height / 3.0;
     self->initial_decay = VECTOR_DISPLAY_DEFAULT_INITIAL_DECAY;
 
     self->offset_x   = VECTOR_DISPLAY_DEFAULT_OFFSET_X;
