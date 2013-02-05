@@ -1,8 +1,8 @@
 ORIGINX=0.5
 ORIGINY=0.5
 
-if [ x$1 == x ]; then
-echo "usage: $0 filename.svg [originx] [originy]"
+if [ x$2 == x ]; then
+echo "usage: $0 shapename filename.svg [originx] [originy]"
 echo
 echo '    This program takes in an SVG file (see notes about the SVG file'
 echo '    below) and outputs a C data structure that can be passed to '
@@ -20,10 +20,11 @@ echo '    popup, pick a profile of SVG 1.0.'
 echo
 exit 1
 fi
-if [ x$2 != x ]; then ORIGINX=$2; fi
-if [ x$3 != x ]; then ORIGINY=$3; fi
+if [ x$3 != x ]; then ORIGINX=$3; fi
+if [ x$4 != x ]; then ORIGINY=$4; fi
 
-cat $1 | tr -d \\n | sed -e '
+cat $2 | tr -d \\n | sed -e '
+s// /g
 s/.*\(<path[^>]*>\).*/\1/
 s/,/ /g
 s/-/ -/g
@@ -31,7 +32,7 @@ s/[ 	][ 	]*/ /g
 s/.*d="\([^"]*\)".*/\1/
 s/\([A-Za-z]\)/\
 \1 /g
-' | awk -v originx=$ORIGINX -v originy=$ORIGINY '
+' | awk -v originx=$ORIGINX -v originy=$ORIGINY -v name=$1 '
 
 BEGIN {
     cpx = 0
@@ -64,8 +65,8 @@ function add(v, x, y) {
             drawn = 0
             icpx = 0
             icpy = 0
-            cn = 0
         }
+            cn = 0
         x = cpx
         y = cpy
         for (i = 2; i <= NF; i += 2) {
@@ -163,7 +164,6 @@ END {
         if (data[i, 1] != "end_draw") {
             if (minx == "unset" || minx > data[i, 2]) minx = data[i, 2]
             if (miny == "unset" || miny > data[i, 3]) miny = data[i, 3]
-
             if (maxx == "unset" || maxx < data[i, 2]) maxx = data[i, 2]
             if (maxy == "unset" || maxy < data[i, 3]) maxy = data[i, 3]
             cnt++
@@ -190,7 +190,7 @@ END {
         }
     }
 
-    print "double points[] = {"
+    print "double " name "[] = {"
     print "    /* original size: " width "x" height ", aspect ratio: " width / height " */"
     print "    " total ", /* total vertex count. */"
     for (i = 0; i < addn; i++) {

@@ -18,6 +18,10 @@
 #define VECTOR_DISPLAY_DEFAULT_SCALE            (1.0)
 #define VECTOR_DISPLAY_DEFAULT_BRIGHTNESS       (1.0)  
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //
 // The type of vector displays
 //
@@ -150,5 +154,9 @@ void vector_display_get_size(vector_display_t *self, double *out_width, double *
 //
 typedef void (*vector_display_log_cb_t)(const char *msg);
 void vector_display_set_log_cb(vector_display_log_cb_t cb_log);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
