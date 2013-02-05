@@ -84,3 +84,36 @@ vector_shape_draw_box(vector_display_t *display, double x, double y, double w, d
     vector_display_end_draw(display);
     return 0;
 }
+
+int
+vector_shape_draw_shape(vector_display_t *display, double *points, double x, double y, double sx, double sy, double angle)
+{
+    double cs = cos(angle);
+    double sn = sin(angle);
+
+    int i = 0;
+    int total = (int)points[i++];
+    while (total > 0) {
+        int vcnt = (int)points[i++];
+
+        double xx = points[i] * sx;
+        double yy = points[i+1] * sy;
+        double rx = xx * cs - yy * sn;
+        double ry = xx * sn + yy * cs;
+        vector_display_begin_draw(display, rx + x, ry + y);
+        i += 2;
+        int j = 1;
+        while (j < vcnt) {
+            xx = points[i] * sx;
+            yy = points[i+1] * sy;
+            rx = xx * cs - yy * sn;
+            ry = xx * sn + yy * cs;
+            vector_display_draw_to(display, rx + x, ry + y);
+            j++;
+            i += 2;
+        }
+        vector_display_end_draw(display);
+        total -= vcnt;
+    }
+    return 0;
+}
