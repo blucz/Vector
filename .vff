@@ -1,0 +1,9 @@
+include *.cs
+include *.cpp
+include *.c
+include *.h
+include *.lua
+include *.broo
+include *.sooschema
+include *.xml
+include *.fse
